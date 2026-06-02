@@ -28,7 +28,7 @@ export function ReadmePanel() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-gh-canvas">
       <div className="flex items-start justify-between p-4 border-b border-gh-border-muted">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">

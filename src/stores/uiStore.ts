@@ -29,7 +29,7 @@ export const useUiStore = create<UiState>(set => ({
   collapsedCats: [],
   sortBy: 'starred_at',
   sortDir: 'desc',
-  theme: 'system',
+  theme: (localStorage.getItem('gsm_theme') as UiState['theme']) || 'system',
   isMobile: false,
   mobileSidebarOpen: false,
   showTagManager: false,
@@ -43,7 +43,10 @@ export const useUiStore = create<UiState>(set => ({
   })),
   setSortBy: sortBy => set({ sortBy }),
   setSortDir: sortDir => set({ sortDir }),
-  setTheme: theme => set({ theme }),
+  setTheme: (theme) => {
+    localStorage.setItem('gsm_theme', theme)
+    set({ theme })
+  },
   setIsMobile: isMobile => set({ isMobile }),
   setMobileSidebarOpen: open => set({ mobileSidebarOpen: open }),
   setShowTagManager: show => set({ showTagManager: show }),

@@ -4,6 +4,7 @@ import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
 import { ChevronIcon, SearchIcon, SyncIcon, TagManageIcon, TrashIcon } from '../shared/Icons'
+import { ThemeToggle } from '../shared/ThemeToggle'
 
 export function CategoryNav() {
   const repos = useRepoStore(s => s.repos)
@@ -62,8 +63,8 @@ export function CategoryNav() {
           <input
             type="text"
             placeholder="搜索仓库..."
-            className="gh-input pl-8 text-xs"
-            style={{ height: 28 }}
+            className="gh-input text-xs"
+            style={{ height: 28, paddingLeft: 32 }}
           />
         </div>
       </div>
@@ -118,7 +119,7 @@ export function CategoryNav() {
                 <button
                   key={tag.id}
                   onClick={() => handleSelect(`tag:${tag.id}`)}
-                  className={`w-full flex items-center justify-between pl-8 pr-3 py-1 text-sm hover:bg-gh-canvas transition-colors ${activeFilter === `tag:${tag.id}` ? 'bg-gh-accent text-white font-medium' : 'text-gh-fg'}`}
+                  className={`w-full flex items-center justify-between pl-8 pr-3 py-1 text-sm transition-colors ${activeFilter === `tag:${tag.id}` ? 'bg-gh-accent text-white hover:bg-gh-accent-emphasis font-medium' : 'hover:bg-gh-canvas text-gh-fg'}`}
                   style={{ borderRadius: 0 }}
                 >
                   <span className="truncate text-xs">{tag.name}</span>
@@ -139,6 +140,11 @@ export function CategoryNav() {
           <TagManageIcon />
           管理标签...
         </button>
+
+        <div className="h-px bg-gh-border-muted my-1" />
+
+        {/* Theme toggle */}
+        <ThemeToggle />
 
         <div className="h-px bg-gh-border-muted my-1" />
 

@@ -12,7 +12,7 @@ export function RepoToolbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gh-border-muted bg-white flex-shrink-0" style={{ minHeight: isMobile ? 48 : 40 }}>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0" style={{ minHeight: isMobile ? 48 : 40 }}>
         <div className="flex items-center gap-2">
           {isMobile && (
             <button
@@ -57,14 +57,14 @@ export function RepoToolbar() {
         </select>
       </div>
 
-      <div className="px-3 py-2 border-b border-gh-border-muted bg-white flex-shrink-0">
+      <div className="px-3 py-2 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0">
         <div className="relative">
           <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
           <input
             type="text"
             placeholder="搜索仓库名、描述、标签..."
-            className="gh-input pl-8 text-sm"
-            style={{ height: isMobile ? 36 : 32 }}
+            className="gh-input text-sm"
+            style={{ height: isMobile ? 36 : 32, paddingLeft: 32 }}
           />
         </div>
       </div>

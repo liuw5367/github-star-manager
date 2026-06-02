@@ -85,9 +85,9 @@ export function TagManagerModal() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[rgba(31,35,40,0.5)] z-100 flex items-center justify-center" onClick={() => setShowTagManager(false)}>
+    <div className="fixed inset-0 bg-black/50 z-100 flex items-center justify-center" onClick={() => setShowTagManager(false)}>
       <div
-        className="bg-white border border-gh-border rounded-xl shadow-lg w-[520px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-48px)] flex flex-col"
+        className="bg-white dark:bg-gh-canvas border border-gh-border rounded-xl shadow-lg w-[520px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-48px)] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gh-border-muted">

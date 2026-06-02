@@ -15,6 +15,26 @@ export default function AppShell() {
   const setIsMobile = useUiStore(s => s.setIsMobile)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
+  const theme = useUiStore(s => s.theme)
+
+  // Apply theme
+  useEffect(() => {
+    const root = document.documentElement
+
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    }
+    else if (theme === 'light') {
+      root.classList.remove('dark')
+    }
+    else {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      root.classList.toggle('dark', mq.matches)
+      const handler = (e: MediaQueryListEvent) => root.classList.toggle('dark', e.matches)
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    }
+  }, [theme])
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768)
@@ -23,7 +43,7 @@ export default function AppShell() {
   }, [setIsMobile])
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-white dark:bg-gh-canvas overflow-hidden">
       <Toast />
 
       {showTagManager && <TagManagerModal />}
@@ -64,7 +84,7 @@ export default function AppShell() {
 
       {/* Desktop: README Panel */}
       {!isMobile && selectedRepo && (
-        <div className="flex-1 overflow-hidden panel-transition bg-white">
+        <div className="flex-1 overflow-hidden panel-transition bg-white dark:bg-gh-canvas">
           <ReadmePanel />
         </div>
       )}
@@ -73,7 +93,7 @@ export default function AppShell() {
       {isMobile && selectedRepo && (
         <>
           <div className="fixed inset-0 bg-black/50 z-[29]" onClick={() => setSelectedRepo(null)} />
-          <div className="fixed inset-0 z-30 bg-white overflow-y-auto translate-x-0 transition-transform duration-250">
+          <div className="fixed inset-0 z-30 bg-white dark:bg-gh-canvas overflow-y-auto translate-x-0 transition-transform duration-250">
             <ReadmePanel />
           </div>
         </>

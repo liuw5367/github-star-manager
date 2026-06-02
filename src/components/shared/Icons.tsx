@@ -12,7 +12,7 @@ export function StarIcon({ filled, size = 16, ...props }: IconProps & { filled?:
         </svg>
       )
     : (
-        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#656d76" strokeWidth="1" {...props}>
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" className="text-gh-fg-muted" {...props}>
           <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
         </svg>
       )
@@ -36,7 +36,7 @@ export function SyncIcon({ spinning, ...props }: IconProps & { spinning?: boolea
 
 export function SearchIcon(props: IconProps) {
   return (
-    <svg width={16} height={16} viewBox="0 0 16 16" fill="#656d76" {...props}>
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="currentColor" className="text-gh-fg-muted" {...props}>
       <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z" />
     </svg>
   )
@@ -131,7 +131,7 @@ export function CheckIcon(props: IconProps) {
 
 export function UnstarIcon(props: IconProps) {
   return (
-    <svg width={14} height={14} viewBox="0 0 16 16" fill="#656d76" {...props}>
+    <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" className="text-gh-fg-muted" {...props}>
       <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Zm0 2.445L6.615 5.5l-2.8.406 2.027 1.976-.478 2.791L8 9.324l2.636 1.349-.478-2.79 2.027-1.977-2.8-.406Z" />
     </svg>
   )

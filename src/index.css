@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-gh-fg: #1f2328;
   --color-gh-fg-muted: #656d76;
@@ -17,6 +19,23 @@
   --color-gh-warning-subtle: #fff8c5;
 }
 
+.dark {
+  --color-gh-fg: #f0f6fc;
+  --color-gh-fg-muted: #8b949e;
+  --color-gh-border: #30363d;
+  --color-gh-border-muted: #21262d;
+  --color-gh-canvas: #0d1117;
+  --color-gh-canvas-subtle: #161b22;
+  --color-gh-accent: #58a6ff;
+  --color-gh-accent-emphasis: #1f6feb;
+  --color-gh-success: #3fb950;
+  --color-gh-danger: #f85149;
+  --color-gh-warning: #d29922;
+  --color-gh-success-subtle: #0c2d6b;
+  --color-gh-danger-subtle: #3d1114;
+  --color-gh-warning-subtle: #262002;
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;
@@ -29,6 +48,12 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+.dark body, .dark #root {
+  background: var(--color-gh-canvas);
+}
+.dark body {
+  background: #0d1117;
 }
 
 ::-webkit-scrollbar {
@@ -44,6 +69,12 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #afb8c1;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #30363d;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
 }
 
 :focus-visible {
@@ -67,6 +98,10 @@ body {
   white-space: nowrap;
   line-height: 1;
 }
+.dark .tag-pill {
+  background: rgba(88, 166, 255, 0.15);
+  border-color: rgba(88, 166, 255, 0.4);
+}
 
 .gh-btn {
   display: inline-flex;
@@ -77,11 +112,26 @@ body {
   font-weight: 500;
   line-height: 20px;
   border-radius: 6px;
-  border: 1px solid;
+  border: 1px solid rgba(31, 35, 40, 0.15);
+  background: #f6f8fa;
+  color: #1f2328;
   cursor: pointer;
   white-space: nowrap;
   transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
 }
+.gh-btn:hover { background: #eaeef2; border-color: rgba(31, 35, 40, 0.15); }
+.dark .gh-btn { background: #21262d; border-color: #30363d; color: #f0f6fc; }
+.dark .gh-btn:hover { background: #30363d; border-color: #484f58; }
+.gh-btn-primary { background: #1f883d; border-color: rgba(31, 136, 61, 0.1); color: #ffffff; }
+.gh-btn-primary:hover { background: #1a7f37; }
+.dark .gh-btn-primary { background: #238636; border-color: rgba(35, 134, 54, 0.1); }
+.dark .gh-btn-primary:hover { background: #2ea043; }
+.gh-btn-danger { background: #fff; color: #d1242f; border-color: rgba(209, 36, 47, 0.4); }
+.gh-btn-danger:hover { background: #ffebe9; border-color: #d1242f; }
+.dark .gh-btn-danger { background: #21262d; color: #f85149; border-color: rgba(248, 81, 73, 0.4); }
+.dark .gh-btn-danger:hover { background: #3d1114; border-color: #f85149; }
+.gh-btn-sm { padding: 3px 12px; font-size: 12px; }
+.gh-btn-default { /* same as .gh-btn */ }
 
 .gh-input {
   width: 100%;
@@ -102,6 +152,10 @@ body {
 .gh-input::placeholder {
   color: var(--color-gh-fg-muted);
 }
+.dark .gh-input { background: #0d1117; }
+.dark .gh-input:focus {
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+}
 
 .gh-select {
   padding: 3px 24px 3px 12px;
@@ -121,6 +175,9 @@ body {
   outline: none;
   border-color: var(--color-gh-accent);
 }
+.dark .gh-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427z'/%3E%3C/svg%3E");
+}
 
 .panel-transition {
   transition: width 200ms cubic-bezier(0.33, 1, 0.68, 1);
@@ -137,6 +194,12 @@ body {
   animation: shimmer 1.5s infinite;
   border-radius: 4px;
 }
+.dark .skeleton {
+  background: linear-gradient(90deg, #161b22 25%, #1c2128 50%, #161b22 75%);
+}
+.dark .readme-content code {
+  background: rgba(240, 246, 252, 0.15);
+}
 
 /* Toast animation */
 @keyframes slide-in {
@@ -145,16 +208,6 @@ body {
 }
 .toast-enter {
   animation: slide-in 0.2s ease-out;
-}
-
-/* Modal overlay */
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes scale-in {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
 }
 
 /* README content styles */

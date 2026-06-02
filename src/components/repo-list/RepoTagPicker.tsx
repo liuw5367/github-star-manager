@@ -70,7 +70,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
 
   return createPortal(
     <div
-      className="fixed bg-white border border-gh-border rounded-lg shadow-lg z-60 flex flex-col"
+      className="fixed bg-white dark:bg-gh-canvas border border-gh-border rounded-lg shadow-lg z-60 flex flex-col"
       ref={pickerRef}
       onClick={e => e.stopPropagation()}
       style={{ top: pos.top, left: pos.left, width: 320, maxHeight: 400 }}
@@ -81,8 +81,8 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
           <input
             type="text"
             placeholder="搜索标签..."
-            className="gh-input pl-7 text-xs"
-            style={{ height: 28 }}
+            className="gh-input text-xs"
+            style={{ height: 28, paddingLeft: 28 }}
             value={search}
             onChange={e => setSearch(e.target.value)}
             autoFocus
@@ -102,7 +102,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-gh-canvas transition-colors text-sm"
                   onClick={() => toggleTag(repo.full_name, tag.id)}
                 >
-                  <div className={`w-4 h-4 rounded border-1.5 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? 'bg-gh-accent border-gh-accent' : 'border-gh-border'}`}>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? 'bg-gh-accent border-gh-accent' : 'border-gh-border bg-white dark:bg-gh-canvas'}`}>
                     {checked && <CheckIcon />}
                   </div>
                   <span className={checked ? 'text-gh-fg font-medium' : 'text-gh-fg'}>{tag.name}</span>

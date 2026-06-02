@@ -12,6 +12,13 @@ interface AuthState {
   logout: () => void
 }
 
+const MOCK_USER: User = {
+  login: 'octocat',
+  avatar_url: 'https://github.githubassets.com/images/modules/logos_page/Octocat.png',
+  name: 'The Octocat',
+  public_repos: 8,
+}
+
 export const useAuthStore = create<AuthState>(set => ({
   pat: '',
   gistId: '',
@@ -32,10 +39,3 @@ export const useAuthStore = create<AuthState>(set => ({
     set({ pat: '', gistId: '', user: null, isAuth: false })
   },
 }))
-
-const MOCK_USER: User = {
-  login: 'octocat',
-  avatar_url: 'https://github.githubassets.com/images/modules/logos_page/Octocat.png',
-  name: 'The Octocat',
-  public_repos: 8,
-}
