@@ -37,7 +37,7 @@ export function RepoToolbar() {
           </span>
         </div>
         <select
-          className="gh-input text-xs"
+          className="gh-select text-xs"
           style={{ height: 28, paddingRight: 24, width: 'auto' }}
           value={`${sortBy}:${sortDir}`}
           onChange={(e) => {

@@ -29,12 +29,17 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
     if (anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect()
       const pickerW = 320
+      const pickerH = 400
+      const spaceBelow = window.innerHeight - rect.bottom
+      const top = spaceBelow >= pickerH || spaceBelow > rect.top
+        ? rect.bottom + 4
+        : rect.top - pickerH - 4
       let left = rect.left
       if (left + pickerW > window.innerWidth - 16)
         left = window.innerWidth - pickerW - 16
       if (left < 16)
         left = 16
-      setPos({ top: rect.bottom + 4, left })
+      setPos({ top, left })
     }
   }, [anchorRef])
 
@@ -143,8 +148,8 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
                   }}
                 />
                 <button onClick={handleCreate} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '3px 10px', fontSize: 11 }}>创建</button>
+                <button onClick={() => setShowCreate(false)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '3px 10px', fontSize: 11 }}>取消</button>
               </div>
-              <button onClick={() => setShowCreate(false)} className="text-xs text-gh-fg-muted hover:text-gh-accent">取消</button>
             </div>
           )
         : (

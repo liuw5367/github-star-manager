@@ -24,12 +24,19 @@ export function SyncIcon({ spinning, ...props }: IconProps & { spinning?: boolea
       width={16}
       height={16}
       viewBox="0 0 16 16"
-      fill="currentColor"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={spinning ? 'animate-spin' : ''}
       style={spinning ? { animationDuration: '1s' } : undefined}
       {...props}
     >
-      <path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 1.5A5.485 5.485 0 0 0 2.47 3.79l1.204 1.204A.25.25 0 0 1 3.5 5.42H.094a.25.25 0 0 1-.25-.25V1.529a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 1.5Z" />
+      <path d="M2 8a6 6 0 0 1 10.47-4" />
+      <path d="M14 8a6 6 0 0 1-10.47 4" />
+      <path d="M13.5 1.5V5h-3.5" />
+      <path d="M2.5 14.5V11H6" />
     </svg>
   )
 }

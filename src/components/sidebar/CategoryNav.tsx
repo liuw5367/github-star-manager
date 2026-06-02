@@ -3,7 +3,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
-import { ChevronIcon, SearchIcon, SyncIcon, TagManageIcon, TrashIcon } from '../shared/Icons'
+import { ChevronIcon, TagManageIcon, TrashIcon } from '../shared/Icons'
 import { ThemeToggle } from '../shared/ThemeToggle'
 
 export function CategoryNav() {
@@ -45,27 +45,13 @@ export function CategoryNav() {
   return (
     <div className="flex flex-col h-full">
       <div className="px-3 py-3 border-b border-gh-border-muted">
-        <div className="flex items-center gap-2 mb-3">
-          <button className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gh-canvas transition-colors" title="同步 Star 数据">
-            <SyncIcon />
-          </button>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {user && (
-              <>
-                <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border" />
-                <span className="text-xs font-medium text-gh-fg-muted truncate">{user.login}</span>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="relative">
-          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
-          <input
-            type="text"
-            placeholder="搜索仓库..."
-            className="gh-input text-xs"
-            style={{ height: 28, paddingLeft: 32 }}
-          />
+        <div className="flex items-center gap-2">
+          {user && (
+            <>
+              <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border" />
+              <span className="text-xs font-medium text-gh-fg-muted truncate">{user.login}</span>
+            </>
+          )}
         </div>
       </div>
 
