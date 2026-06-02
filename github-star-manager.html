@@ -1,0 +1,1559 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitHub Star Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gh: {
+              fg: '#1f2328',
+              fgMuted: '#656d76',
+              border: '#d1d9e0',
+              borderMuted: '#d8dee4',
+              canvas: '#f6f8fa',
+              canvasSubtle: '#eaeef2',
+              accent: '#0969da',
+              accentEmphasis: '#0550ae',
+              success: '#1a7f37',
+              danger: '#d1242f',
+              warning: '#9a6700',
+              successSubtle: '#dafbe1',
+              dangerSubtle: '#ffebe9',
+              warningSubtle: '#fff8c5',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.9/babel.min.js" crossorigin="anonymous"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+      color: #1f2328;
+      background: #ffffff;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      height: 100vh;
+    }
+    #root { height: 100vh; overflow: hidden; }
+
+    /* GitHub-style scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d9e0; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #afb8c1; }
+
+    /* GitHub-style focus ring */
+    :focus-visible {
+      outline: 2px solid #0969da;
+      outline-offset: -2px;
+      border-radius: 6px;
+    }
+
+    /* Transition for panel */
+    .panel-transition { transition: width 200ms cubic-bezier(0.33, 1, 0.68, 1); }
+
+    /* Mobile sidebar drawer */
+    @media (max-width: 767px) {
+      .mobile-sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 40;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 200ms ease;
+      }
+      .mobile-sidebar-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .mobile-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 250ms cubic-bezier(0.33, 1, 0.68, 1);
+        background: #f6f8fa;
+        border-right: 1px solid #d1d9e0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .mobile-sidebar.open {
+        transform: translateX(0);
+      }
+      /* Mobile README overlay */
+      .mobile-readme-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        background: #fff;
+        transform: translateX(100%);
+        transition: transform 250ms cubic-bezier(0.33, 1, 0.68, 1);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .mobile-readme-overlay.open {
+        transform: translateX(0);
+      }
+      /* Hide desktop sidebar on mobile */
+      .desktop-sidebar { display: none !important; }
+      /* Hide desktop readme panel on mobile */
+      .desktop-readme { display: none !important; }
+      /* Mobile: repo list always full width */
+      .repo-list-panel { width: 100% !important; min-width: 0 !important; }
+      /* Better touch targets on mobile */
+      .mobile-touch-target { min-height: 44px; }
+    }
+    @media (min-width: 768px) {
+      .mobile-sidebar, .mobile-sidebar-backdrop, .mobile-readme-overlay, .mobile-menu-btn { display: none !important; }
+    }
+
+    /* Tag pill */
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 7px;
+      height: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 9999px;
+      background: #ddf4ff;
+      color: #0969da;
+      border: 1px solid #b6e3ff;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(31, 35, 40, 0.5);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 150ms ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-panel {
+      background: #fff;
+      border: 1px solid #d1d9e0;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+      width: 520px;
+      max-width: calc(100vw - 32px);
+      max-height: calc(100vh - 48px);
+      display: flex;
+      flex-direction: column;
+      animation: scaleIn 150ms ease;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Tag picker popover */
+    .tag-picker-popover {
+      background: #fff;
+      border: 1px solid #d1d9e0;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+      z-index: 60;
+      max-height: 400px;
+      display: flex;
+      flex-direction: column;
+      animation: fadeIn 100ms ease;
+    }
+
+    /* Tag toggle item in picker */
+    .tag-toggle-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 80ms;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+    .tag-toggle-item:hover {
+      background: #f6f8fa;
+    }
+    .tag-toggle-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid #d1d9e0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 80ms;
+    }
+    .tag-toggle-check.checked {
+      background: #0969da;
+      border-color: #0969da;
+    }
+
+    /* Inline tag create input */
+    .inline-tag-create {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-top: 1px solid #d8dee4;
+    }
+    .inline-tag-create input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      padding: 4px 0;
+      background: transparent;
+      color: #1f2328;
+    }
+    .inline-tag-create input::placeholder { color: #656d76; }
+
+    /* Skeleton animation */
+    @keyframes shimmer {
+      0% { background-position: -200px 0; }
+      100% { background-position: 200px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200px 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+
+    /* Toast */
+    @keyframes slideIn {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .toast-enter { animation: slideIn 0.2s ease-out; }
+
+    /* README styles */
+    .readme-content h1 { font-size: 2em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin: 24px 0 16px; }
+    .readme-content h2 { font-size: 1.5em; border-bottom: 1px solid #d1d9e0; padding-bottom: 0.3em; margin: 24px 0 16px; }
+    .readme-content h3 { font-size: 1.25em; margin: 24px 0 16px; }
+    .readme-content p { margin: 0 0 16px; }
+    .readme-content code {
+      background: rgba(175, 184, 193, 0.2);
+      padding: 0.2em 0.4em;
+      border-radius: 6px;
+      font-size: 85%;
+      font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    .readme-content pre {
+      background: #f6f8fa;
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 0 0 16px;
+    }
+    .readme-content pre code { background: transparent; padding: 0; }
+    .readme-content ul, .readme-content ol { padding-left: 2em; margin: 0 0 16px; }
+    .readme-content li { margin: 4px 0; }
+    .readme-content blockquote {
+      border-left: 4px solid #d1d9e0;
+      padding: 0 16px;
+      color: #656d76;
+      margin: 0 0 16px;
+    }
+    .readme-content table { border-collapse: collapse; margin: 0 0 16px; width: 100%; }
+    .readme-content th, .readme-content td {
+      border: 1px solid #d1d9e0;
+      padding: 6px 13px;
+    }
+    .readme-content th { background: #f6f8fa; font-weight: 600; }
+    .readme-content a { color: #0969da; text-decoration: none; }
+    .readme-content a:hover { text-decoration: underline; }
+    .readme-content img { max-width: 100%; }
+    .readme-content hr { border: none; border-top: 1px solid #d1d9e0; margin: 24px 0; }
+
+    /* GitHub Button Styles */
+    .gh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
+      border-radius: 6px;
+      border: 1px solid;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: 80ms cubic-bezier(0.33, 1, 0.68, 1);
+    }
+    .gh-btn-primary {
+      background: #1f883d;
+      border-color: rgba(31, 136, 61, 0.1);
+      color: #ffffff;
+    }
+    .gh-btn-primary:hover { background: #1a7f37; }
+    .gh-btn-default {
+      background: #f6f8fa;
+      border-color: rgba(31, 35, 40, 0.15);
+      color: #1f2328;
+    }
+    .gh-btn-default:hover { background: #eaeef2; border-color: rgba(31, 35, 40, 0.15); }
+    .gh-btn-danger {
+      background: #fff;
+      color: #d1242f;
+      border-color: rgba(209, 36, 47, 0.4);
+    }
+    .gh-btn-danger:hover { background: #ffebe9; border-color: #d1242f; }
+    .gh-btn-sm { padding: 3px 12px; font-size: 12px; }
+
+    /* GitHub Input */
+    .gh-input {
+      width: 100%;
+      padding: 5px 12px;
+      font-size: 14px;
+      background: #ffffff;
+      border: 1px solid #d1d9e0;
+      border-radius: 6px;
+      color: #1f2328;
+      line-height: 20px;
+      transition: border-color 80ms;
+    }
+    .gh-input:focus {
+      outline: none;
+      border-color: #0969da;
+      box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+    }
+    .gh-input::placeholder { color: #656d76; }
+
+    /* Select */
+    .gh-select {
+      padding: 3px 24px 3px 12px;
+      font-size: 12px;
+      background: #f6f8fa;
+      border: 1px solid #d1d9e0;
+      border-radius: 6px;
+      color: #1f2328;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23656d76' viewBox='0 0 16 16'%3E%3Cpath d='m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      cursor: pointer;
+      line-height: 20px;
+    }
+    .gh-select:focus { outline: none; border-color: #0969da; }
+    @media (max-width: 767px) {
+      .gh-select {
+        min-height: 36px;
+        font-size: 13px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ── Mock Data ──────────────────────────────────────────────────────────────
+    const MOCK_USER = {
+      login: 'octocat',
+      avatar_url: 'https://github.githubassets.com/images/modules/logos_page/Octocat.png',
+      name: 'The Octocat',
+      public_repos: 8,
+    };
+
+    const MOCK_CATEGORIES = [
+      { id: 'cat_lang', name: '语言 / Language', order: 0, tags: [
+        { id: 'tag_python', name: 'Python', order: 0 },
+        { id: 'tag_typescript', name: 'TypeScript', order: 1 },
+        { id: 'tag_rust', name: 'Rust', order: 2 },
+        { id: 'tag_go', name: 'Go', order: 3 },
+      ]},
+      { id: 'cat_framework', name: '框架 / Framework', order: 1, tags: [
+        { id: 'tag_react', name: 'React', order: 0 },
+        { id: 'tag_vue', name: 'Vue', order: 1 },
+        { id: 'tag_nextjs', name: 'Next.js', order: 2 },
+      ]},
+      { id: 'cat_tooling', name: '工具 / Tooling', order: 2, tags: [
+        { id: 'tag_cli', name: 'CLI', order: 0 },
+        { id: 'tag_build', name: '构建工具', order: 1 },
+        { id: 'tag_devtools', name: '开发辅助', order: 2 },
+      ]},
+      { id: 'cat_ai', name: 'AI / ML', order: 3, tags: [
+        { id: 'tag_llm', name: 'LLM', order: 0 },
+        { id: 'tag_training', name: '训练框架', order: 1 },
+        { id: 'tag_inference', name: '推理', order: 2 },
+      ]},
+      { id: 'cat_infra', name: '基础设施 / Infra', order: 4, tags: [
+        { id: 'tag_docker', name: 'Docker', order: 0 },
+        { id: 'tag_k8s', name: 'K8s', order: 1 },
+        { id: 'tag_cicd', name: 'CI/CD', order: 2 },
+      ]},
+      { id: 'cat_database', name: '数据库 / Database', order: 5, tags: [
+        { id: 'tag_orm', name: 'ORM', order: 0 },
+        { id: 'tag_migration', name: '迁移工具', order: 1 },
+      ]},
+      { id: 'cat_learning', name: '学习资源 / Learning', order: 6, tags: [
+        { id: 'tag_tutorial', name: '教程', order: 0 },
+        { id: 'tag_awesome', name: 'Awesome 列表', order: 1 },
+      ]},
+      { id: 'cat_app', name: '应用 / App', order: 7, tags: [
+        { id: 'tag_saas', name: 'SaaS', order: 0 },
+        { id: 'tag_opensource', name: '开源服务', order: 1 },
+      ]},
+    ];
+
+    const MOCK_REPOS = [
+      { full_name: 'facebook/react', description: 'The library for web and native user interfaces.', language: 'JavaScript', stargazers_count: 231000, updated_at: '2025-05-20', starred_at: '2023-06-15', tags: ['tag_react', 'tag_typescript'], note: '核心依赖，持续关注新版本' },
+      { full_name: 'vercel/next.js', description: 'The React Framework for the Web. Used by some of the world\'s largest companies, Next.js enables you to create high-quality web applications.', language: 'JavaScript', stargazers_count: 128000, updated_at: '2025-05-22', starred_at: '2023-08-20', tags: ['tag_react', 'tag_nextjs', 'tag_typescript'], note: '' },
+      { full_name: 'shadcn-ui/ui', description: 'Beautifully designed components that you can copy and paste into your apps. Accessible. Customizable. Open Source.', language: 'TypeScript', stargazers_count: 78500, updated_at: '2025-05-21', starred_at: '2024-01-10', tags: ['tag_react', 'tag_typescript'], note: 'UI 组件库首选' },
+      { full_name: 'tailwindlabs/tailwindcss', description: 'A utility-first CSS framework for rapid UI development.', language: 'TypeScript', stargazers_count: 85200, updated_at: '2025-05-19', starred_at: '2023-03-05', tags: ['tag_build'], note: '' },
+      { full_name: 'denoland/deno', description: 'A modern runtime for JavaScript and TypeScript.', language: 'Rust', stargazers_count: 98400, updated_at: '2025-05-18', starred_at: '2024-02-28', tags: ['tag_rust', 'tag_typescript'], note: '替代 Node.js 的方案' },
+      { full_name: 'astral-sh/ruff', description: 'An extremely fast Python linter and code formatter, written in Rust.', language: 'Rust', stargazers_count: 35200, updated_at: '2025-05-20', starred_at: '2024-04-12', tags: ['tag_python', 'tag_rust', 'tag_cli'], note: 'Python 工具链的未来' },
+      { full_name: 'pydantic/pydantic', description: 'Data validation using Python type annotations.', language: 'Python', stargazers_count: 20800, updated_at: '2025-05-17', starred_at: '2023-11-01', tags: ['tag_python'], note: '' },
+      { full_name: 'langchain-ai/langchain', description: '🦜🔗 Build context-aware reasoning applications.', language: 'Python', stargazers_count: 98700, updated_at: '2025-05-22', starred_at: '2024-01-20', tags: ['tag_python', 'tag_llm'], note: 'LLM 应用开发框架' },
+      { full_name: 'ollama/ollama', description: 'Get up and running with Llama 3, Mistral, Gemma 2, and other large language models.', language: 'Go', stargazers_count: 115000, updated_at: '2025-05-21', starred_at: '2024-03-15', tags: ['tag_go', 'tag_llm', 'tag_inference'], note: '本地运行 LLM 最佳方案' },
+      { full_name: 'docker/compose', description: 'Define and run multi-container applications with Docker.', language: 'Go', stargazers_count: 34500, updated_at: '2025-05-15', starred_at: '2023-07-20', tags: ['tag_docker', 'tag_go'], note: '' },
+      { full_name: 'tokio-rs/tokio', description: 'A runtime for writing reliable asynchronous applications with Rust.', language: 'Rust', stargazers_count: 27800, updated_at: '2025-05-16', starred_at: '2024-05-10', tags: ['tag_rust'], note: 'Rust 异步运行时' },
+      { full_name: 'drizzle-team/drizzle-orm', description: 'Headless TypeScript ORM with a head.', language: 'TypeScript', stargazers_count: 26400, updated_at: '2025-05-19', starred_at: '2024-06-01', tags: ['tag_typescript', 'tag_orm'], note: '' },
+      { full_name: 'vuejs/core', description: 'Vue.js is a progressive JavaScript framework for building UI on the web.', language: 'TypeScript', stargazers_count: 48200, updated_at: '2025-05-20', starred_at: '2023-09-10', tags: ['tag_vue', 'tag_typescript'], note: '' },
+      { full_name: 'anthropics/anthropic-sdk-python', description: 'Python SDK for the Anthropic API.', language: 'Python', stargazers_count: 2800, updated_at: '2025-05-21', starred_at: '2024-08-15', tags: ['tag_python', 'tag_llm'], note: 'Claude API SDK' },
+      { full_name: 'biomejs/biome', description: 'A toolchain for web projects, aimed to provide functionalities to maintain them.', language: 'Rust', stargazers_count: 16800, updated_at: '2025-05-18', starred_at: '2024-07-22', tags: ['tag_rust', 'tag_cli', 'tag_devtools'], note: '' },
+      { full_name: 'sindresorhus/awesome-nodejs', description: 'Delightful Node.js packages and resources.', language: null, stargazers_count: 58400, updated_at: '2025-05-10', starred_at: '2023-05-01', tags: ['tag_awesome', 'tag_typescript'], note: '' },
+      { full_name: 'huggingface/transformers', description: '🤗 Transformers: State-of-the-art Machine Learning for Pytorch, TensorFlow, and JAX.', language: 'Python', stargazers_count: 138000, updated_at: '2025-05-22', starred_at: '2023-12-05', tags: ['tag_python', 'tag_llm', 'tag_training'], note: 'ML 核心库' },
+      { full_name: 'astral-sh/uv', description: 'An extremely fast Python package and project manager, written in Rust.', language: 'Rust', stargazers_count: 52300, updated_at: '2025-05-21', starred_at: '2024-09-01', tags: ['tag_python', 'tag_rust', 'tag_cli'], note: '替代 pip/poetry' },
+    ];
+
+    const MOCK_README = `# React
+
+React is a JavaScript library for building user interfaces.
+
+## Installation
+
+\`\`\`bash
+npm install react react-dom
+\`\`\`
+
+## Quick Start
+
+\`\`\`jsx
+import { createRoot } from 'react-dom/client';
+
+function App() {
+  return <h1>Hello, world!</h1>;
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+\`\`\`
+
+## Features
+
+- **Declarative**: React makes it painless to create interactive UIs.
+- **Component-Based**: Build encapsulated components that manage their own state.
+- **Learn Once, Write Anywhere**: Develop new features without rewriting existing code.
+
+## Documentation
+
+Full documentation is available at [react.dev](https://react.dev).
+
+## Contributing
+
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## License
+
+React is [MIT licensed](./LICENSE).
+`;
+
+    // ── Utility Functions ──────────────────────────────────────────────────────
+    function formatStars(count) {
+      if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      return String(count);
+    }
+
+    function getLanguageColor(lang) {
+      const colors = {
+        JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5',
+        Rust: '#dea584', Go: '#00ADD8', Java: '#b07219',
+        Ruby: '#701516', PHP: '#4F5D95', C: '#555555',
+        'C++': '#f34b7d', 'C#': '#178600', Swift: '#F05138',
+        Kotlin: '#A97BFF', Dart: '#00B4AB', Shell: '#89e051',
+      };
+      return colors[lang] || '#656d76';
+    }
+
+    // ── Toast Component ────────────────────────────────────────────────────────
+    function Toast({ message, type = 'info', onClose }) {
+      useEffect(() => {
+        const t = setTimeout(onClose, 3000);
+        return () => clearTimeout(t);
+      }, [onClose]);
+
+      const bgMap = { success: 'bg-gh-successSubtle border-gh-success text-gh-success', error: 'bg-gh-dangerSubtle border-gh-danger text-gh-danger', info: 'bg-gh-warningSubtle border-gh-warning text-gh-warning' };
+      return (
+        <div className={`toast-enter fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium shadow-lg ${bgMap[type] || bgMap.info}`}>
+          {type === 'success' && <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>}
+          {type === 'error' && <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>}
+          {message}
+        </div>
+      );
+    }
+
+    // ── Icon Components ────────────────────────────────────────────────────────
+    function StarIcon({ filled, size = 16 }) {
+      return filled ? (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="#e3b341" stroke="#e3b341" strokeWidth="1"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/></svg>
+      ) : (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="#656d76" strokeWidth="1"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/></svg>
+      );
+    }
+
+    function SyncIcon({ spinning }) {
+      return (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className={spinning ? 'animate-spin' : ''} style={spinning ? { animationDuration: '1s' } : {}}>
+          <path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 1.5A5.485 5.485 0 0 0 2.47 3.79l1.204 1.204A.25.25 0 0 1 3.5 5.42H.094a.25.25 0 0 1-.25-.25V1.529a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 1.5Z"/>
+        </svg>
+      );
+    }
+
+    function SearchIcon() {
+      return <svg width="16" height="16" viewBox="0 0 16 16" fill="#656d76"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/></svg>;
+    }
+
+    function CloseIcon() {
+      return <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"/></svg>;
+    }
+
+    function HamburgerIcon() {
+      return <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.75A.75.75 0 0 1 1.75 2h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h12.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12h12.5a.75.75 0 0 1 0 1.5H1.75a.75.75 0 0 1 0-1.5Z"/></svg>;
+    }
+
+    function EditIcon() {
+      return <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"/></svg>;
+    }
+
+    function NoteIcon() {
+      return <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25V8.5h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>;
+    }
+
+    function ChevronIcon({ open }) {
+      return (
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style={{ transform: open ? 'rotate(0)' : 'rotate(-90deg)', transition: 'transform 150ms ease' }}>
+          <path d="M12.78 6.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 7.28a.749.749 0 1 1 1.06-1.06L8 9.939l3.72-3.719a.749.749 0 0 1 1.06 0Z"/>
+        </svg>
+      );
+    }
+
+    function TrashIcon() {
+      return <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"/></svg>;
+    }
+
+    function ExternalIcon() {
+      return <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"/></svg>;
+    }
+
+    function TagManageIcon() {
+      return <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>;
+    }
+
+    function PlusIcon({ size = 12 }) {
+      return <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z"/></svg>;
+    }
+
+    function CheckIcon() {
+      return <svg width="10" height="10" viewBox="0 0 16 16" fill="white"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>;
+    }
+
+    // ── Sidebar Category Nav ───────────────────────────────────────────────────
+    function CategoryNav({ categories, activeFilter, onSelectFilter, repoCounts, collapsedCats, onToggleCat, onOpenTagManager, repos }) {
+      const totalRepos = Object.values(repoCounts).reduce((a, b) => a + b, 0);
+      const untaggedCount = repos.filter(r => !r.tags || r.tags.length === 0).length;
+
+      const isActive = (key) => activeFilter === key;
+
+      return (
+        <div className="flex flex-col h-full">
+          <div className="px-3 py-3 border-b border-gh-borderMuted">
+            <div className="flex items-center gap-2 mb-3">
+              <button className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-gh-canvas transition-colors" title="同步 Star 数据">
+                <SyncIcon spinning={false} />
+              </button>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <img src={MOCK_USER.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border" />
+                <span className="text-xs font-medium text-gh-fgMuted truncate">{MOCK_USER.login}</span>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
+              <input
+                type="text"
+                placeholder="搜索仓库..."
+                className="gh-input pl-8 text-xs"
+                style={{ height: 28 }}
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto py-1">
+            {/* All */}
+            <button
+              onClick={() => onSelectFilter('all')}
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('all') ? 'bg-gh-accent text-white hover:bg-gh-accentEmphasis font-medium' : 'text-gh-fg'}`}
+              style={{ borderRadius: 0 }}
+            >
+              <span className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className={isActive('all') ? 'text-white' : 'text-gh-fgMuted'}><path d="M1.5 1.75V13.5h13.25a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"/></svg>
+                全部
+              </span>
+              <span className={`text-xs ${isActive('all') ? 'text-white/70' : 'text-gh-fgMuted'}`}>{totalRepos}</span>
+            </button>
+
+            {/* Untagged */}
+            <button
+              onClick={() => onSelectFilter('untagged')}
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('untagged') ? 'bg-gh-accent text-white hover:bg-gh-accentEmphasis font-medium' : 'text-gh-fg'}`}
+              style={{ borderRadius: 0 }}
+            >
+              <span className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className={isActive('untagged') ? 'text-white' : 'text-gh-fgMuted'}><path d="M1 7.775V2.75C1 1.784 1.784 1 2.75 1h5.025c.464 0 .91.184 1.238.513l6.25 6.25a1.75 1.75 0 0 1 0 2.474l-5.026 5.026a1.75 1.75 0 0 1-2.474 0l-6.25-6.25A1.752 1.752 0 0 1 1 7.775Zm1.5 0c0 .066.026.13.073.177l6.25 6.25a.25.25 0 0 0 .354 0l5.025-5.025a.25.25 0 0 0 0-.354l-6.25-6.25a.25.25 0 0 0-.177-.073H2.75a.25.25 0 0 0-.25.25ZM6 5a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
+                未分类
+              </span>
+              <span className={`text-xs ${isActive('untagged') ? 'text-white/70' : 'text-gh-fgMuted'}`}>{untaggedCount}</span>
+            </button>
+
+            <div className="h-px bg-gh-borderMuted my-1" />
+
+            {/* Categories */}
+            {categories.map(cat => {
+              const isOpen = !collapsedCats.includes(cat.id);
+              const catRepoCount = cat.tags.reduce((sum, t) => sum + (repoCounts[t.id] || 0), 0);
+              return (
+                <div key={cat.id}>
+                  <button
+                    onClick={() => { onToggleCat(cat.id); onSelectFilter('cat:' + cat.id); }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${activeFilter === 'cat:' + cat.id ? 'bg-gh-canvas font-semibold text-gh-fg' : 'text-gh-fg'}`}
+                    style={{ borderRadius: 0 }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <ChevronIcon open={isOpen} />
+                      <span className="truncate text-xs">{cat.name}</span>
+                    </span>
+                    <span className="text-xs text-gh-fgMuted flex-shrink-0">{catRepoCount}</span>
+                  </button>
+                  {isOpen && cat.tags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => onSelectFilter('tag:' + tag.id)}
+                      className={`w-full flex items-center justify-between pl-8 pr-3 py-1 text-sm hover:bg-gh-canvas transition-colors ${activeFilter === 'tag:' + tag.id ? 'bg-gh-accent text-white font-medium' : 'text-gh-fg'}`}
+                      style={{ borderRadius: 0 }}
+                    >
+                      <span className="truncate text-xs">{tag.name}</span>
+                      <span className={`text-xs flex-shrink-0 ${activeFilter === 'tag:' + tag.id ? 'text-white/70' : 'text-gh-fgMuted'}`}>{repoCounts[tag.id] || 0}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+
+            <div className="h-px bg-gh-borderMuted my-1" />
+
+            {/* Manage Tags */}
+            <button
+              onClick={onOpenTagManager}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gh-fgMuted hover:text-gh-accent hover:bg-gh-canvas transition-colors"
+              style={{ borderRadius: 0 }}
+            >
+              <TagManageIcon />
+              管理标签...
+            </button>
+
+            <div className="h-px bg-gh-borderMuted my-1" />
+
+            {/* Trash */}
+            <button
+              onClick={() => onSelectFilter('trash')}
+              className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('trash') ? 'bg-gh-accent text-white hover:bg-gh-accentEmphasis font-medium' : 'text-gh-fg'}`}
+              style={{ borderRadius: 0 }}
+            >
+              <span className="flex items-center gap-2">
+                <TrashIcon />
+                回收站
+              </span>
+              <span className={`text-xs ${isActive('trash') ? 'text-white/70' : 'text-gh-fgMuted'}`}>0</span>
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Repo Card ──────────────────────────────────────────────────────────────
+    function RepoCard({ repo, isSelected, onClick, categories, onToggleTag, onCreateTag }) {
+      const [editingNote, setEditingNote] = useState(false);
+      const [noteText, setNoteText] = useState(repo.note || '');
+      const [showTagPicker, setShowTagPicker] = useState(false);
+      const tagAreaRef = useRef(null);
+
+      const tagNames = (repo.tags || []).map(tagId => {
+        for (const cat of categories) {
+          const found = cat.tags.find(t => t.id === tagId);
+          if (found) return { id: tagId, name: found.name };
+        }
+        return { id: tagId, name: tagId };
+      });
+
+      return (
+        <div
+          onClick={onClick}
+          className={`group border-b border-gh-borderMuted cursor-pointer transition-colors ${isSelected ? 'bg-gh-accent/5 border-l-2 !border-l-gh-accent' : 'hover:bg-gh-canvas/60 border-l-2 border-l-transparent'}`}
+          style={{ padding: '12px 12px 10px' }}
+        >
+          {/* Header row */}
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <div className="min-w-0 flex-1">
+              <span className="text-sm font-semibold text-gh-accent hover:underline truncate block">
+                {repo.full_name}
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button
+                onClick={(e) => { e.stopPropagation(); }}
+                className="p-1.5 sm:p-0.5 rounded hover:bg-gh-canvasSubtle transition-colors"
+                title="取消 Star"
+                style={{ minWidth: 32, minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <StarIcon filled={true} size={14} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowTagPicker(!showTagPicker); }}
+                className="p-1.5 sm:p-0.5 rounded hover:bg-gh-canvasSubtle transition-colors text-gh-fgMuted hover:text-gh-fg"
+                title="编辑标签"
+                style={{ minWidth: 32, minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <EditIcon />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingNote(!editingNote); }}
+                className="p-1.5 sm:p-0.5 rounded hover:bg-gh-canvasSubtle transition-colors text-gh-fgMuted hover:text-gh-fg"
+                title="编辑备注"
+                style={{ minWidth: 32, minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <NoteIcon />
+              </button>
+            </div>
+          </div>
+
+          {/* Description */}
+          {repo.description && (
+            <p className="text-xs text-gh-fgMuted leading-relaxed mb-1.5" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {repo.description}
+            </p>
+          )}
+
+          {/* Meta row */}
+          <div className="flex items-center gap-3 text-xs text-gh-fgMuted mb-1.5 flex-wrap">
+            {repo.language && (
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: getLanguageColor(repo.language) }} />
+                {repo.language}
+              </span>
+            )}
+            <span className="flex items-center gap-0.5">
+              <StarIcon filled={false} size={12} />
+              {formatStars(repo.stargazers_count)}
+            </span>
+            <span>更新: {repo.updated_at}</span>
+          </div>
+
+          {/* Starred time */}
+          <div className="text-xs text-gh-fgMuted/60 mb-1.5">
+            Starred: {repo.starred_at}
+          </div>
+
+          {/* Tags */}
+          <div className="flex items-center gap-1 flex-wrap relative" ref={tagAreaRef}>
+            {tagNames.map(t => (
+              <span key={t.id} className="tag-pill">{t.name}</span>
+            ))}
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowTagPicker(!showTagPicker); }}
+              className="inline-flex items-center gap-0.5 text-xs text-gh-accent hover:underline"
+            >
+              + 添加标签
+            </button>
+            {/* Tag picker popover */}
+            {showTagPicker && ReactDOM.createPortal(
+              <RepoTagPicker
+                repo={repo}
+                categories={categories}
+                onToggleTag={onToggleTag}
+                onCreateTag={onCreateTag}
+                onClose={() => setShowTagPicker(false)}
+                anchorRef={tagAreaRef}
+              />,
+              document.body
+            )}
+          </div>
+
+          {/* Note editor */}
+          {editingNote && (
+            <div className="mt-2" onClick={e => e.stopPropagation()}>
+              <textarea
+                className="gh-input text-xs resize-none"
+                rows={2}
+                placeholder="添加备注..."
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                autoFocus
+                onBlur={() => setEditingNote(false)}
+              />
+            </div>
+          )}
+
+          {/* Note display */}
+          {!editingNote && repo.note && (
+            <div className="mt-1 flex items-start gap-1.5 text-xs text-gh-fgMuted">
+              <span className="mt-0.5 flex-shrink-0">📝</span>
+              <span className="truncate">{repo.note}</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ── README Panel ───────────────────────────────────────────────────────────
+    function ReadmePanel({ repo, onClose }) {
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        setLoading(true);
+        const t = setTimeout(() => setLoading(false), 800);
+        return () => clearTimeout(t);
+      }, [repo?.full_name]);
+
+      if (!repo) return null;
+
+      return (
+        <div className="flex flex-col h-full bg-white">
+          {/* Header */}
+          <div className="flex items-start justify-between p-4 border-b border-gh-borderMuted">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-base font-semibold text-gh-accent truncate">{repo.full_name}</h2>
+                <a href={`https://github.com/${repo.full_name}`} target="_blank" rel="noopener" className="flex items-center gap-1 text-xs text-gh-fgMuted hover:text-gh-accent flex-shrink-0">
+                  在 GitHub 打开 <ExternalIcon />
+                </a>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-gh-fgMuted flex-wrap">
+                <span className="flex items-center gap-0.5">
+                  <StarIcon filled={true} size={12} />
+                  {formatStars(repo.stargazers_count)}
+                </span>
+                {repo.language && (
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: getLanguageColor(repo.language) }} />
+                    {repo.language}
+                  </span>
+                )}
+                <span>Updated: {repo.updated_at}</span>
+              </div>
+              {repo.description && (
+                <p className="text-xs text-gh-fgMuted mt-1.5">{repo.description}</p>
+              )}
+            </div>
+            <button onClick={onClose} className="p-2 sm:p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fgMuted hover:text-gh-fg ml-2 flex-shrink-0" style={{ minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <CloseIcon />
+            </button>
+          </div>
+
+          {/* README body */}
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="p-6 space-y-3">
+                <div className="skeleton h-8 w-2/3" />
+                <div className="skeleton h-4 w-full" />
+                <div className="skeleton h-4 w-5/6" />
+                <div className="skeleton h-4 w-4/6" />
+                <div className="h-4" />
+                <div className="skeleton h-4 w-full" />
+                <div className="skeleton h-4 w-3/4" />
+                <div className="skeleton h-24 w-full" />
+                <div className="skeleton h-4 w-5/6" />
+                <div className="skeleton h-4 w-2/3" />
+              </div>
+            ) : (
+              <div className="p-6 readme-content" style={{ maxWidth: 800 }}>
+                <div dangerouslySetInnerHTML={{ __html: renderSimpleMarkdown(MOCK_README) }} />
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Tag Manager Modal (Global) ────────────────────────────────────────────
+    function TagManagerModal({ categories, onClose, onUpdateCategories }) {
+      const [localCats, setLocalCats] = useState(JSON.parse(JSON.stringify(categories)));
+      const [newTagName, setNewTagName] = useState('');
+      const [newTagTargetCat, setNewTagTargetCat] = useState(null);
+      const [editingTagId, setEditingTagId] = useState(null);
+      const [editingTagName, setEditingTagName] = useState('');
+      const [newCatName, setNewCatName] = useState('');
+      const [showNewCat, setShowNewCat] = useState(false);
+
+      const addTag = (catId) => {
+        if (!newTagName.trim()) return;
+        const tagId = 'tag_' + newTagName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+        setLocalCats(prev => prev.map(cat =>
+          cat.id === catId
+            ? { ...cat, tags: [...cat.tags, { id: tagId, name: newTagName.trim(), order: cat.tags.length }] }
+            : cat
+        ));
+        setNewTagName('');
+        setNewTagTargetCat(null);
+      };
+
+      const deleteTag = (catId, tagId) => {
+        setLocalCats(prev => prev.map(cat =>
+          cat.id === catId
+            ? { ...cat, tags: cat.tags.filter(t => t.id !== tagId) }
+            : cat
+        ));
+      };
+
+      const saveTagName = (catId, tagId) => {
+        if (!editingTagName.trim()) return;
+        setLocalCats(prev => prev.map(cat =>
+          cat.id === catId
+            ? { ...cat, tags: cat.tags.map(t => t.id === tagId ? { ...t, name: editingTagName.trim() } : t) }
+            : cat
+        ));
+        setEditingTagId(null);
+        setEditingTagName('');
+      };
+
+      const addCategory = () => {
+        if (!newCatName.trim()) return;
+        const catId = 'cat_' + newCatName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+        setLocalCats(prev => [...prev, { id: catId, name: newCatName.trim(), order: prev.length, tags: [] }]);
+        setNewCatName('');
+        setShowNewCat(false);
+      };
+
+      const deleteCategory = (catId) => {
+        setLocalCats(prev => prev.filter(c => c.id !== catId));
+      };
+
+      const handleSave = () => {
+        onUpdateCategories(localCats);
+        onClose();
+      };
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-panel" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gh-borderMuted">
+              <h3 className="text-sm font-semibold text-gh-fg">管理标签</h3>
+              <button onClick={onClose} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fgMuted">
+                <CloseIcon />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ maxHeight: 480 }}>
+              {localCats.map(cat => (
+                <div key={cat.id} className="border border-gh-borderMuted rounded-lg overflow-hidden">
+                  {/* Category header */}
+                  <div className="flex items-center justify-between px-3 py-2 bg-gh-canvas/50 border-b border-gh-borderMuted">
+                    <span className="text-xs font-semibold text-gh-fg">{cat.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => { setNewTagTargetCat(cat.id); setNewTagName(''); }}
+                        className="p-1 rounded hover:bg-gh-canvasSubtle transition-colors text-gh-fgMuted hover:text-gh-accent"
+                        title="添加标签"
+                      >
+                        <PlusIcon size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteCategory(cat.id)}
+                        className="p-1 rounded hover:bg-gh-dangerSubtle transition-colors text-gh-fgMuted hover:text-gh-danger"
+                        title="删除分类"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tags list */}
+                  <div className="p-2 space-y-0.5">
+                    {cat.tags.length === 0 && (
+                      <p className="text-xs text-gh-fgMuted/50 px-2 py-1">暂无标签</p>
+                    )}
+                    {cat.tags.map(tag => (
+                      <div key={tag.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gh-canvas/60 group">
+                        {editingTagId === tag.id ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <input
+                              className="gh-input text-xs flex-1"
+                              style={{ height: 26, padding: '2px 8px' }}
+                              value={editingTagName}
+                              onChange={e => setEditingTagName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') saveTagName(cat.id, tag.id); if (e.key === 'Escape') setEditingTagId(null); }}
+                              autoFocus
+                            />
+                            <button onClick={() => saveTagName(cat.id, tag.id)} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>保存</button>
+                            <button onClick={() => setEditingTagId(null)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>取消</button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xs text-gh-fg flex-1">{tag.name}</span>
+                            <span className="text-xs text-gh-fgMuted/40 font-mono">{tag.id}</span>
+                            <button
+                              onClick={() => { setEditingTagId(tag.id); setEditingTagName(tag.name); }}
+                              className="p-0.5 rounded hover:bg-gh-canvasSubtle transition-colors text-gh-fgMuted opacity-0 group-hover:opacity-100"
+                              title="编辑"
+                            >
+                              <EditIcon />
+                            </button>
+                            <button
+                              onClick={() => deleteTag(cat.id, tag.id)}
+                              className="p-0.5 rounded hover:bg-gh-dangerSubtle transition-colors text-gh-fgMuted hover:text-gh-danger opacity-0 group-hover:opacity-100"
+                              title="删除"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Inline new tag */}
+                    {newTagTargetCat === cat.id && (
+                      <div className="flex items-center gap-1 px-2 py-1 mt-1 border-t border-gh-borderMuted/50">
+                        <input
+                          className="gh-input text-xs flex-1"
+                          style={{ height: 26, padding: '2px 8px' }}
+                          placeholder="新标签名称..."
+                          value={newTagName}
+                          onChange={e => setNewTagName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') addTag(cat.id); if (e.key === 'Escape') setNewTagTargetCat(null); }}
+                          autoFocus
+                        />
+                        <button onClick={() => addTag(cat.id)} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>添加</button>
+                        <button onClick={() => setNewTagTargetCat(null)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>取消</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Add new category */}
+              {showNewCat ? (
+                <div className="flex items-center gap-2 p-2 border border-gh-borderMuted rounded-lg">
+                  <input
+                    className="gh-input text-xs flex-1"
+                    style={{ height: 28, padding: '2px 8px' }}
+                    placeholder="分类名称..."
+                    value={newCatName}
+                    onChange={e => setNewCatName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addCategory(); if (e.key === 'Escape') setShowNewCat(false); }}
+                    autoFocus
+                  />
+                  <button onClick={addCategory} className="gh-btn gh-btn-primary gh-btn-sm">添加分类</button>
+                  <button onClick={() => setShowNewCat(false)} className="gh-btn gh-btn-default gh-btn-sm">取消</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNewCat(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gh-border rounded-lg text-xs text-gh-fgMuted hover:text-gh-accent hover:border-gh-accent transition-colors"
+                >
+                  <PlusIcon /> 添加新分类
+                </button>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gh-borderMuted bg-gh-canvas/30">
+              <button onClick={onClose} className="gh-btn gh-btn-default gh-btn-sm">取消</button>
+              <button onClick={handleSave} className="gh-btn gh-btn-primary gh-btn-sm">保存更改</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Repo Tag Picker (Popover) ─────────────────────────────────────────────
+    function RepoTagPicker({ repo, categories, onToggleTag, onCreateTag, onClose, anchorRef }) {
+      const [search, setSearch] = useState('');
+      const [newTagName, setNewTagName] = useState('');
+      const [newTagCat, setNewTagCat] = useState('');
+      const [showCreate, setShowCreate] = useState(false);
+      const pickerRef = useRef(null);
+      const [pos, setPos] = useState({ top: 0, left: 0 });
+
+      useEffect(() => {
+        if (anchorRef?.current) {
+          const rect = anchorRef.current.getBoundingClientRect();
+          const pickerW = 320;
+          let left = rect.left;
+          if (left + pickerW > window.innerWidth - 16) left = window.innerWidth - pickerW - 16;
+          if (left < 16) left = 16;
+          setPos({ top: rect.bottom + 4, left });
+        }
+      }, [anchorRef]);
+
+      useEffect(() => {
+        const handler = (e) => {
+          if (pickerRef.current && !pickerRef.current.contains(e.target) &&
+              anchorRef?.current && !anchorRef.current.contains(e.target)) {
+            onClose();
+          }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+      }, [onClose, anchorRef]);
+
+      const filteredCats = categories.map(cat => ({
+        ...cat,
+        tags: cat.tags.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()))
+      })).filter(cat => cat.tags.length > 0);
+
+      const allTags = categories.flatMap(c => c.tags);
+      const repoTagSet = new Set(repo.tags || []);
+
+      const handleCreate = () => {
+        if (!newTagName.trim() || !newTagCat) return;
+        onCreateTag(newTagCat, newTagName.trim());
+        setNewTagName('');
+        setNewTagCat('');
+        setShowCreate(false);
+      };
+
+      return (
+        <div className="tag-picker-popover" ref={pickerRef} onClick={e => e.stopPropagation()} style={{ position: 'fixed', top: pos.top, left: pos.left, width: 320 }}>
+          {/* Search */}
+          <div className="p-2 border-b border-gh-borderMuted">
+            <div className="relative">
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
+              <input
+                type="text"
+                placeholder="搜索标签..."
+                className="gh-input pl-7 text-xs"
+                style={{ height: 28 }}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Tag list */}
+          <div className="flex-1 overflow-y-auto p-1" style={{ maxHeight: 280 }}>
+            {filteredCats.map(cat => (
+              <div key={cat.id} className="mb-1">
+                <div className="px-2 py-1 text-xs font-medium text-gh-fgMuted/60 uppercase tracking-wide">{cat.name}</div>
+                {cat.tags.map(tag => {
+                  const checked = repoTagSet.has(tag.id);
+                  return (
+                    <div
+                      key={tag.id}
+                      className="tag-toggle-item"
+                      onClick={() => onToggleTag(repo.full_name, tag.id)}
+                    >
+                      <div className={`tag-toggle-check ${checked ? 'checked' : ''}`}>
+                        {checked && <CheckIcon />}
+                      </div>
+                      <span className={checked ? 'text-gh-fg font-medium' : 'text-gh-fg'}>{tag.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+            {filteredCats.length === 0 && (
+              <p className="text-xs text-gh-fgMuted text-center py-4">没有匹配的标签</p>
+            )}
+          </div>
+
+          {/* Create new tag */}
+          {showCreate ? (
+            <div className="p-2 border-t border-gh-borderMuted space-y-2">
+              <select
+                className="gh-select text-xs w-full"
+                value={newTagCat}
+                onChange={e => setNewTagCat(e.target.value)}
+                style={{ minHeight: 28 }}
+              >
+                <option value="">选择分类...</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-1">
+                <input
+                  className="gh-input text-xs flex-1"
+                  style={{ height: 28, padding: '2px 8px' }}
+                  placeholder="新标签名称..."
+                  value={newTagName}
+                  onChange={e => setNewTagName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+                />
+                <button onClick={handleCreate} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '3px 10px', fontSize: 11 }}>创建</button>
+              </div>
+              <button onClick={() => setShowCreate(false)} className="text-xs text-gh-fgMuted hover:text-gh-accent">取消</button>
+            </div>
+          ) : (
+            <div className="p-2 border-t border-gh-borderMuted">
+              <button
+                onClick={() => { setShowCreate(true); setNewTagCat(categories[0]?.id || ''); }}
+                className="flex items-center gap-1.5 w-full px-2 py-1.5 text-xs text-gh-accent hover:bg-gh-accent/5 rounded transition-colors"
+              >
+                <PlusIcon /> 创建新标签并添加
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ── Simple Markdown Renderer (for prototype) ───────────────────────────────
+    function renderSimpleMarkdown(md) {
+      let html = md
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>');
+
+      // Code blocks
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        return `<pre><code class="language-${lang}">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
+      });
+
+      // Wrap consecutive <li> in <ul>
+      html = html.replace(/(<li>[\s\S]*?<\/li>)/g, (match) => {
+        if (!match.startsWith('<ul>')) return '<ul>' + match + '</ul>';
+        return match;
+      });
+      // Clean up nested ul
+      html = html.replace(/<\/ul>\s*<ul>/g, '');
+
+      // Paragraphs for lines that aren't already wrapped
+      html = html.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('<')) return trimmed;
+        return `<p>${trimmed}</p>`;
+      }).join('\n');
+
+      return html;
+    }
+
+    // ── Main App ───────────────────────────────────────────────────────────────
+    function App() {
+      const [activeFilter, setActiveFilter] = useState('all');
+      const [selectedRepo, setSelectedRepo] = useState(null);
+      const [collapsedCats, setCollapsedCats] = useState([]);
+      const [sortBy, setSortBy] = useState('starred_at');
+      const [sortDir, setSortDir] = useState('desc');
+      const [syncing, setSyncing] = useState(false);
+      const [toast, setToast] = useState(null);
+      const [repos, setRepos] = useState(MOCK_REPOS);
+      const [categories, setCategories] = useState(MOCK_CATEGORIES);
+      const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+      const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+      const [showTagManager, setShowTagManager] = useState(false);
+
+      // Track viewport size
+      useEffect(() => {
+        const onResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }, []);
+
+      // Compute tag -> repo count mapping
+      const repoCounts = useMemo(() => {
+        const counts = {};
+        repos.forEach(r => {
+          (r.tags || []).forEach(t => {
+            counts[t] = (counts[t] || 0) + 1;
+          });
+        });
+        return counts;
+      }, [repos]);
+
+      // Filter repos
+      const filteredRepos = useMemo(() => {
+        let filtered = [...repos];
+
+        if (activeFilter === 'untagged') {
+          filtered = filtered.filter(r => !r.tags || r.tags.length === 0);
+        } else if (activeFilter.startsWith('cat:')) {
+          const catId = activeFilter.slice(4);
+          const cat = categories.find(c => c.id === catId);
+          if (cat) {
+            const tagIds = new Set(cat.tags.map(t => t.id));
+            filtered = filtered.filter(r => r.tags?.some(t => tagIds.has(t)));
+          }
+        } else if (activeFilter.startsWith('tag:')) {
+          const tagId = activeFilter.slice(4);
+          filtered = filtered.filter(r => r.tags?.includes(tagId));
+        }
+
+        // Sort
+        filtered.sort((a, b) => {
+          let cmp = 0;
+          if (sortBy === 'starred_at') cmp = a.starred_at.localeCompare(b.starred_at);
+          else if (sortBy === 'stargazers_count') cmp = a.stargazers_count - b.stargazers_count;
+          else if (sortBy === 'full_name') cmp = a.full_name.localeCompare(b.full_name);
+          else if (sortBy === 'updated_at') cmp = a.updated_at.localeCompare(b.updated_at);
+          return sortDir === 'desc' ? -cmp : cmp;
+        });
+
+        return filtered;
+      }, [repos, categories, activeFilter, sortBy, sortDir]);
+
+      const toggleCat = (catId) => {
+        setCollapsedCats(prev =>
+          prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+        );
+      };
+
+      const handleSync = () => {
+        setSyncing(true);
+        setTimeout(() => {
+          setSyncing(false);
+          setToast({ message: '同步完成，共 ' + repos.length + ' 个仓库', type: 'success' });
+        }, 2000);
+      };
+
+      // Close mobile sidebar when selecting a filter
+      const handleFilterSelect = (filter) => {
+        setActiveFilter(filter);
+        if (isMobile) setMobileSidebarOpen(false);
+      };
+
+      // Close mobile readme
+      const handleCloseReadme = () => {
+        setSelectedRepo(null);
+      };
+
+      // Toggle a tag on a repo
+      const handleToggleTag = (repoFullName, tagId) => {
+        setRepos(prev => prev.map(r => {
+          if (r.full_name !== repoFullName) return r;
+          const tags = r.tags || [];
+          const has = tags.includes(tagId);
+          return { ...r, tags: has ? tags.filter(t => t !== tagId) : [...tags, tagId] };
+        }));
+      };
+
+      // Create a new global tag and assign to repo
+      const handleCreateTag = (catId, tagName) => {
+        const tagId = 'tag_' + tagName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+        // Add to categories
+        setCategories(prev => prev.map(cat =>
+          cat.id === catId
+            ? { ...cat, tags: cat.tags.some(t => t.id === tagId) ? cat.tags : [...cat.tags, { id: tagId, name: tagName, order: cat.tags.length }] }
+            : cat
+        ));
+        setToast({ message: `标签 "${tagName}" 已创建`, type: 'success' });
+      };
+
+      return (
+        <div className="flex h-screen bg-white overflow-hidden">
+          {/* Toast */}
+          {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+          {/* Tag Manager Modal */}
+          {showTagManager && (
+            <TagManagerModal
+              categories={categories}
+              onClose={() => setShowTagManager(false)}
+              onUpdateCategories={setCategories}
+            />
+          )}
+
+          {/* Mobile sidebar drawer */}
+          {isMobile && (
+            <>
+              <div
+                className={`mobile-sidebar-backdrop ${mobileSidebarOpen ? 'open' : ''}`}
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+              <div className={`mobile-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+                <CategoryNav
+                  categories={categories}
+                  activeFilter={activeFilter}
+                  onSelectFilter={handleFilterSelect}
+                  repoCounts={repoCounts}
+                  collapsedCats={collapsedCats}
+                  onToggleCat={toggleCat}
+                  onOpenTagManager={() => { setShowTagManager(true); setMobileSidebarOpen(false); }}
+                  repos={repos}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Desktop sidebar */}
+          {!isMobile && (
+            <div className="flex-shrink-0 border-r border-gh-border bg-gh-canvas/30 overflow-hidden desktop-sidebar" style={{ width: 200 }}>
+              <CategoryNav
+                categories={categories}
+                activeFilter={activeFilter}
+                onSelectFilter={setActiveFilter}
+                repoCounts={repoCounts}
+                collapsedCats={collapsedCats}
+                onToggleCat={toggleCat}
+                onOpenTagManager={() => setShowTagManager(true)}
+                repos={repos}
+              />
+            </div>
+          )}
+
+          {/* Middle Panel: Repo List */}
+          <div className="flex flex-col border-r border-gh-border panel-transition overflow-hidden repo-list-panel" style={{ width: (!isMobile && selectedRepo) ? 360 : '100%', minWidth: isMobile ? 0 : 320 }}>
+            {/* Toolbar */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gh-borderMuted bg-white flex-shrink-0" style={{ minHeight: isMobile ? 48 : 40 }}>
+              <div className="flex items-center gap-2">
+                {isMobile && (
+                  <button
+                    onClick={() => setMobileSidebarOpen(true)}
+                    className="mobile-menu-btn p-2 -ml-1 rounded-md hover:bg-gh-canvas transition-colors"
+                    aria-label="打开侧边栏"
+                    style={{ minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <HamburgerIcon />
+                  </button>
+                )}
+                {!isMobile && (
+                  <button onClick={handleSync} disabled={syncing} className="gh-btn gh-btn-default gh-btn-sm" title="同步 Star 数据">
+                    <SyncIcon spinning={syncing} />
+                    <span className="hidden sm:inline">{syncing ? '同步中...' : '同步'}</span>
+                  </button>
+                )}
+                <span className="text-xs text-gh-fgMuted">{filteredRepos.length} 个仓库</span>
+              </div>
+              <select
+                className="gh-input text-xs"
+                style={{ height: 28, paddingRight: 24, width: 'auto' }}
+                value={sortBy + ':' + sortDir}
+                onChange={e => {
+                  const [field, dir] = e.target.value.split(':');
+                  setSortBy(field);
+                  setSortDir(dir);
+                }}
+              >
+                <option value="starred_at:desc">Star 时间 ↓</option>
+                <option value="starred_at:asc">Star 时间 ↑</option>
+                <option value="stargazers_count:desc">Star 数 ↓</option>
+                <option value="stargazers_count:asc">Star 数 ↑</option>
+                <option value="full_name:asc">名称 A→Z</option>
+                <option value="full_name:desc">名称 Z→A</option>
+                <option value="updated_at:desc">更新时间 ↓</option>
+                <option value="updated_at:asc">更新时间 ↑</option>
+              </select>
+            </div>
+
+            {/* Search bar */}
+            <div className="px-3 py-2 border-b border-gh-borderMuted bg-white flex-shrink-0">
+              <div className="relative">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
+                <input
+                  type="text"
+                  placeholder="搜索仓库名、描述、标签..."
+                  className="gh-input pl-8 text-sm"
+                  style={{ height: isMobile ? 36 : 32 }}
+                />
+              </div>
+            </div>
+
+            {/* Repo list */}
+            <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+              {filteredRepos.map(repo => (
+                <RepoCard
+                  key={repo.full_name}
+                  repo={repo}
+                  isSelected={selectedRepo?.full_name === repo.full_name}
+                  onClick={() => setSelectedRepo(repo)}
+                  categories={categories}
+                  onToggleTag={handleToggleTag}
+                  onCreateTag={handleCreateTag}
+                />
+              ))}
+              {filteredRepos.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-gh-fgMuted">
+                  <svg width="40" height="40" viewBox="0 0 16 16" fill="#d1d9e0" className="mb-3"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/></svg>
+                  <p className="text-sm">没有匹配的仓库</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Right Panel: README Viewer */}
+          {!isMobile && selectedRepo && (
+            <div className="flex-1 overflow-hidden panel-transition bg-white desktop-readme">
+              <ReadmePanel
+                repo={selectedRepo}
+                onClose={handleCloseReadme}
+              />
+            </div>
+          )}
+
+          {/* Mobile README overlay */}
+          {isMobile && selectedRepo && (
+            <>
+              <div
+                className="mobile-sidebar-backdrop open"
+                onClick={handleCloseReadme}
+                style={{ zIndex: 29 }}
+              />
+              <div className="mobile-readme-overlay open" style={{ zIndex: 30 }}>
+                <ReadmePanel
+                  repo={selectedRepo}
+                  onClose={handleCloseReadme}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ── Mount ──────────────────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
