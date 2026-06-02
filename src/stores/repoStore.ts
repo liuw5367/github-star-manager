@@ -1,70 +1,195 @@
 import type { Repo } from '../types'
 import { create } from 'zustand'
+import * as github from '../api/github'
+import * as gist from '../api/gist'
+import { useAuthStore } from './authStore'
+import { useTagStore } from './tagStore'
 
 interface RepoState {
   repos: Repo[]
+  syncing: boolean
+  syncProgress: string
+  lastSynced: string
   setRepos: (repos: Repo[]) => void
+  syncStarred: () => Promise<void>
   toggleTag: (fullName: string, tagId: string) => void
   setNote: (fullName: string, note: string) => void
   addTag: (fullName: string, tagId: string) => void
   removeTag: (fullName: string, tagId: string) => void
 }
 
-const MOCK_REPOS: Repo[] = [
-  { full_name: 'facebook/react', description: 'The library for web and native user interfaces.', language: 'JavaScript', stargazers_count: 231000, updated_at: '2025-05-20', starred_at: '2023-06-15', tags: ['tag_react', 'tag_typescript'], note: '核心依赖，持续关注新版本' },
-  { full_name: 'vercel/next.js', description: 'The React Framework for the Web.', language: 'JavaScript', stargazers_count: 128000, updated_at: '2025-05-22', starred_at: '2023-08-20', tags: ['tag_react', 'tag_nextjs', 'tag_typescript'], note: '' },
-  { full_name: 'shadcn-ui/ui', description: 'Beautifully designed components that you can copy and paste into your apps.', language: 'TypeScript', stargazers_count: 78500, updated_at: '2025-05-21', starred_at: '2024-01-10', tags: ['tag_react', 'tag_typescript'], note: 'UI 组件库首选' },
-  { full_name: 'tailwindlabs/tailwindcss', description: 'A utility-first CSS framework for rapid UI development.', language: 'TypeScript', stargazers_count: 85200, updated_at: '2025-05-19', starred_at: '2023-03-05', tags: ['tag_build'], note: '' },
-  { full_name: 'denoland/deno', description: 'A modern runtime for JavaScript and TypeScript.', language: 'Rust', stargazers_count: 98400, updated_at: '2025-05-18', starred_at: '2024-02-28', tags: ['tag_rust', 'tag_typescript'], note: '替代 Node.js 的方案' },
-  { full_name: 'astral-sh/ruff', description: 'An extremely fast Python linter and code formatter, written in Rust.', language: 'Rust', stargazers_count: 35200, updated_at: '2025-05-20', starred_at: '2024-04-12', tags: ['tag_python', 'tag_rust', 'tag_cli'], note: 'Python 工具链的未来' },
-  { full_name: 'pydantic/pydantic', description: 'Data validation using Python type annotations.', language: 'Python', stargazers_count: 20800, updated_at: '2025-05-17', starred_at: '2023-11-01', tags: ['tag_python'], note: '' },
-  { full_name: 'langchain-ai/langchain', description: 'Build context-aware reasoning applications.', language: 'Python', stargazers_count: 98700, updated_at: '2025-05-22', starred_at: '2024-01-20', tags: ['tag_python', 'tag_llm'], note: 'LLM 应用开发框架' },
-  { full_name: 'ollama/ollama', description: 'Get up and running with large language models.', language: 'Go', stargazers_count: 115000, updated_at: '2025-05-21', starred_at: '2024-03-15', tags: ['tag_go', 'tag_llm', 'tag_inference'], note: '本地运行 LLM 最佳方案' },
-  { full_name: 'docker/compose', description: 'Define and run multi-container applications with Docker.', language: 'Go', stargazers_count: 34500, updated_at: '2025-05-15', starred_at: '2023-07-20', tags: ['tag_docker', 'tag_go'], note: '' },
-  { full_name: 'tokio-rs/tokio', description: 'A runtime for writing reliable asynchronous applications with Rust.', language: 'Rust', stargazers_count: 27800, updated_at: '2025-05-16', starred_at: '2024-05-10', tags: ['tag_rust'], note: 'Rust 异步运行时' },
-  { full_name: 'drizzle-team/drizzle-orm', description: 'Headless TypeScript ORM with a head.', language: 'TypeScript', stargazers_count: 26400, updated_at: '2025-05-19', starred_at: '2024-06-01', tags: ['tag_typescript', 'tag_orm'], note: '' },
-  { full_name: 'vuejs/core', description: 'Vue.js is a progressive JavaScript framework for building UI on the web.', language: 'TypeScript', stargazers_count: 48200, updated_at: '2025-05-20', starred_at: '2023-09-10', tags: ['tag_vue', 'tag_typescript'], note: '' },
-  { full_name: 'biomejs/biome', description: 'A toolchain for web projects.', language: 'Rust', stargazers_count: 16800, updated_at: '2025-05-18', starred_at: '2024-07-22', tags: ['tag_rust', 'tag_cli', 'tag_devtools'], note: '' },
-  { full_name: 'sindresorhus/awesome-nodejs', description: 'Delightful Node.js packages and resources.', language: null, stargazers_count: 58400, updated_at: '2025-05-10', starred_at: '2023-05-01', tags: ['tag_awesome', 'tag_typescript'], note: '' },
-  { full_name: 'huggingface/transformers', description: 'State-of-the-art Machine Learning for Pytorch, TensorFlow, and JAX.', language: 'Python', stargazers_count: 138000, updated_at: '2025-05-22', starred_at: '2023-12-05', tags: ['tag_python', 'tag_llm', 'tag_training'], note: 'ML 核心库' },
-  { full_name: 'astral-sh/uv', description: 'An extremely fast Python package and project manager, written in Rust.', language: 'Rust', stargazers_count: 52300, updated_at: '2025-05-21', starred_at: '2024-09-01', tags: ['tag_python', 'tag_rust', 'tag_cli'], note: '替代 pip/poetry' },
-]
+function saveCache(repos: Repo[]) {
+  localStorage.setItem('gsm_repo_cache', JSON.stringify(repos))
+}
 
-export const useRepoStore = create<RepoState>(set => ({
-  repos: MOCK_REPOS,
-  setRepos: repos => set({ repos }),
+function loadCache(): Repo[] {
+  try {
+    const raw = localStorage.getItem('gsm_repo_cache')
+    return raw ? JSON.parse(raw) : []
+  }
+  catch {
+    return []
+  }
+}
+
+export const useRepoStore = create<RepoState>((set, get) => ({
+  repos: loadCache(),
+  syncing: false,
+  syncProgress: '',
+  lastSynced: '',
+
+  setRepos: (repos) => {
+    set({ repos })
+    saveCache(repos)
+  },
+
+  syncStarred: async () => {
+    const { pat, gistId } = useAuthStore.getState()
+    if (!pat) throw new Error('未设置 PAT')
+    if (!gistId) throw new Error('未设置 Gist')
+
+    set({ syncing: true, syncProgress: '正在拉取 Star 数据...' })
+
+    try {
+      const starredRepos = await github.getStarred(pat, (page, total) => {
+        set({ syncProgress: `正在拉取第 ${page} 页 / 共 ${total} 页...` })
+      })
+
+      set({ syncProgress: '正在对比本地数据...' })
+
+      const existing = get().repos
+      const existingNames = new Set(existing.map(r => r.full_name))
+      const starredNames = new Set(starredRepos.map(r => r.full_name))
+
+      const newRepos = starredRepos.filter(r => !existingNames.has(r.full_name))
+      const removedRepos = existing.filter(r => !starredNames.has(r.full_name))
+
+      const { ensureLanguageTag, categories } = useTagStore.getState()
+
+      const createdTags: string[] = []
+      const reposToAdd: Repo[] = newRepos.map((sr) => {
+        const tags: string[] = []
+        if (sr.language) {
+          const tagId = ensureLanguageTag(sr.language)
+          if (!createdTags.includes(tagId)) createdTags.push(tagId)
+          tags.push(tagId)
+        }
+        return {
+          full_name: sr.full_name,
+          description: sr.description,
+          language: sr.language,
+          stargazers_count: sr.stargazers_count,
+          updated_at: sr.updated_at,
+          starred_at: sr.starred_at,
+          tags,
+          note: '',
+        }
+      })
+
+      const existingMap = new Map(existing.map(r => [r.full_name, r]))
+      const updatedRepos: Repo[] = starredRepos.map(sr => {
+        const old = existingMap.get(sr.full_name)
+        if (old) {
+          return {
+            ...old,
+            description: sr.description,
+            language: sr.language,
+            stargazers_count: sr.stargazers_count,
+            updated_at: sr.updated_at,
+          }
+        }
+        const added = reposToAdd.find(r => r.full_name === sr.full_name)
+        return added || {
+          full_name: sr.full_name,
+          description: sr.description,
+          language: sr.language,
+          stargazers_count: sr.stargazers_count,
+          updated_at: sr.updated_at,
+          starred_at: sr.starred_at,
+          tags: [],
+          note: '',
+        }
+      })
+
+      const now = new Date().toISOString()
+      const trash: Record<string, { tags: string[]; note: string; trashed_at: string }> = {}
+      removedRepos.forEach((r) => {
+        trash[r.full_name] = { tags: r.tags, note: r.note, trashed_at: now }
+      })
+
+      set({ syncProgress: '正在保存到 Gist...' })
+
+      const tagMap: Record<string, string[]> = {}
+      updatedRepos.forEach((r) => {
+        if (r.tags.length > 0) tagMap[r.full_name] = r.tags
+      })
+      const noteMap: Record<string, string> = {}
+      updatedRepos.forEach((r) => {
+        if (r.note) noteMap[r.full_name] = r.note
+      })
+
+      const currentCategories = useTagStore.getState().categories
+
+      await gist.updateGistFiles(gistId, pat, {
+        'meta.json': JSON.stringify({ version: 1, last_synced: now, total_starred: starredRepos.length }),
+        'categories.json': JSON.stringify({ categories: currentCategories }),
+        'tags.json': JSON.stringify(tagMap),
+        'notes.json': JSON.stringify(noteMap),
+        'trash.json': JSON.stringify(trash),
+      })
+
+      set({ repos: updatedRepos, lastSynced: now, syncing: false, syncProgress: '' })
+      saveCache(updatedRepos)
+    }
+    catch (err) {
+      set({ syncing: false, syncProgress: '' })
+      throw err
+    }
+  },
+
   toggleTag: (fullName, tagId) => {
-    set(state => ({
-      repos: state.repos.map(r =>
+    set(state => {
+      const updated = state.repos.map(r =>
         r.full_name === fullName
           ? { ...r, tags: r.tags.includes(tagId) ? r.tags.filter(t => t !== tagId) : [...r.tags, tagId] }
           : r,
-      ),
-    }))
+      )
+      saveCache(updated)
+      return { repos: updated }
+    })
   },
+
   addTag: (fullName, tagId) => {
-    set(state => ({
-      repos: state.repos.map(r =>
+    set(state => {
+      const updated = state.repos.map(r =>
         r.full_name === fullName && !r.tags.includes(tagId)
           ? { ...r, tags: [...r.tags, tagId] }
           : r,
-      ),
-    }))
+      )
+      saveCache(updated)
+      return { repos: updated }
+    })
   },
+
   removeTag: (fullName, tagId) => {
-    set(state => ({
-      repos: state.repos.map(r =>
+    set(state => {
+      const updated = state.repos.map(r =>
         r.full_name === fullName
           ? { ...r, tags: r.tags.filter(t => t !== tagId) }
           : r,
-      ),
-    }))
+      )
+      saveCache(updated)
+      return { repos: updated }
+    })
   },
+
   setNote: (fullName, note) => {
-    set(state => ({
-      repos: state.repos.map(r =>
+    set(state => {
+      const updated = state.repos.map(r =>
         r.full_name === fullName ? { ...r, note } : r,
-      ),
-    }))
+      )
+      saveCache(updated)
+      return { repos: updated }
+    })
   },
 }))

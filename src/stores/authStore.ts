@@ -6,36 +6,39 @@ interface AuthState {
   gistId: string
   user: User | null
   isAuth: boolean
-  setPat: (pat: string) => void
+  checking: boolean
   setGistId: (id: string) => void
-  setUser: (user: User) => void
+  login: (pat: string, user: User) => void
   logout: () => void
+  setCheckingDone: () => void
 }
 
-const MOCK_USER: User = {
-  login: 'octocat',
-  avatar_url: 'https://github.githubassets.com/images/modules/logos_page/Octocat.png',
-  name: 'The Octocat',
-  public_repos: 8,
+function loadFromStorage() {
+  const pat = localStorage.getItem('github_star_manager_pat') || ''
+  const gistId = localStorage.getItem('github_star_manager_gist_id') || ''
+  return { pat, gistId }
 }
+
+const { pat, gistId } = loadFromStorage()
 
 export const useAuthStore = create<AuthState>(set => ({
-  pat: '',
-  gistId: '',
-  user: MOCK_USER,
-  isAuth: true,
-  setPat: (pat) => {
-    localStorage.setItem('github_star_manager_pat', pat)
-    set({ pat })
-  },
+  pat,
+  gistId,
+  user: null,
+  isAuth: false,
+  checking: true,
   setGistId: (id) => {
     localStorage.setItem('github_star_manager_gist_id', id)
     set({ gistId: id })
   },
-  setUser: user => set({ user, isAuth: true }),
+  login: (pat, user) => {
+    localStorage.setItem('github_star_manager_pat', pat)
+    set({ pat, user, isAuth: true, checking: false })
+  },
   logout: () => {
     localStorage.removeItem('github_star_manager_pat')
     localStorage.removeItem('github_star_manager_gist_id')
-    set({ pat: '', gistId: '', user: null, isAuth: false })
+    set({ pat: '', gistId: '', user: null, isAuth: false, checking: false })
   },
+  setCheckingDone: () => set({ checking: false }),
 }))

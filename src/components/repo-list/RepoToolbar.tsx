@@ -1,14 +1,29 @@
+import { useRepoStore } from '../../stores/repoStore'
 import { useUiStore } from '../../stores/uiStore'
 import { HamburgerIcon, SearchIcon, SyncIcon } from '../shared/Icons'
 
 export function RepoToolbar() {
-  const filteredCount = 0
+  const filteredCount = useRepoStore(s => s.repos.length)
+  const syncing = useRepoStore(s => s.syncing)
+  const syncProgress = useRepoStore(s => s.syncProgress)
+  const syncStarred = useRepoStore(s => s.syncStarred)
   const sortBy = useUiStore(s => s.sortBy)
   const sortDir = useUiStore(s => s.sortDir)
   const isMobile = useUiStore(s => s.isMobile)
   const setSortBy = useUiStore(s => s.setSortBy)
   const setSortDir = useUiStore(s => s.setSortDir)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
+  const setToast = useUiStore(s => s.setToast)
+
+  const handleSync = async () => {
+    try {
+      await syncStarred()
+      setToast({ message: '✓ 同步完成', type: 'success' })
+    }
+    catch (err) {
+      setToast({ message: err instanceof Error ? err.message : '同步失败', type: 'error' })
+    }
+  }
 
   return (
     <>
@@ -25,9 +40,14 @@ export function RepoToolbar() {
             </button>
           )}
           {!isMobile && (
-            <button className="gh-btn gh-btn-default gh-btn-sm" title="同步 Star 数据">
-              <SyncIcon />
-              <span className="hidden sm:inline">同步</span>
+            <button
+              className="gh-btn gh-btn-default gh-btn-sm"
+              title="同步 Star 数据"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              <SyncIcon spinning={syncing} />
+              <span className="hidden sm:inline">{syncing ? syncProgress || '同步中...' : '同步'}</span>
             </button>
           )}
           <span className="text-xs text-gh-fg-muted">

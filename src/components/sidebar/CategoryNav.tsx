@@ -3,7 +3,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
-import { ChevronIcon, TagManageIcon, TrashIcon } from '../shared/Icons'
+import { ChevronIcon, LogoutIcon, TagManageIcon, TrashIcon } from '../shared/Icons'
 import { ThemeToggle } from '../shared/ThemeToggle'
 
 export function CategoryNav() {
@@ -12,6 +12,7 @@ export function CategoryNav() {
   const activeFilter = useUiStore(s => s.activeFilter)
   const collapsedCats = useUiStore(s => s.collapsedCats)
   const user = useAuthStore(s => s.user)
+  const logout = useAuthStore(s => s.logout)
 
   const setActiveFilter = useUiStore(s => s.setActiveFilter)
   const toggleCat = useUiStore(s => s.toggleCat)
@@ -45,14 +46,19 @@ export function CategoryNav() {
   return (
     <div className="flex flex-col h-full">
       <div className="px-3 py-3 border-b border-gh-border-muted">
-        <div className="flex items-center gap-2">
-          {user && (
-            <>
-              <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border" />
-              <span className="text-xs font-medium text-gh-fg-muted truncate">{user.login}</span>
-            </>
-          )}
-        </div>
+        {user && (
+          <div className="flex items-center gap-2">
+            <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border flex-shrink-0" />
+            <span className="text-xs font-medium text-gh-fg truncate min-w-0 flex-1">{user.login}</span>
+            <button
+              onClick={logout}
+              className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted hover:text-gh-danger flex-shrink-0"
+              title="退出登录"
+            >
+              <LogoutIcon />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto py-1">
@@ -129,7 +135,6 @@ export function CategoryNav() {
 
         <div className="h-px bg-gh-border-muted my-1" />
 
-        {/* Theme toggle */}
         <ThemeToggle />
 
         <div className="h-px bg-gh-border-muted my-1" />

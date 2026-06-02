@@ -1,72 +1,46 @@
 import type { Category } from '../types'
 import { create } from 'zustand'
+import { DEFAULT_CATEGORIES } from '../api/gist'
 
 interface TagState {
   categories: Category[]
   setCategories: (categories: Category[]) => void
-  addCategory: (name: string) => void
+  addCategory: (name: string) => string
   deleteCategory: (catId: string) => void
   renameCategory: (catId: string, name: string) => void
-  addTag: (catId: string, name: string) => void
+  addTag: (catId: string, name: string) => string
   deleteTag: (catId: string, tagId: string) => void
   renameTag: (catId: string, tagId: string, name: string) => void
+  seedDefaultCategories: () => void
+  ensureLanguageTag: (language: string) => string
 }
 
-const MOCK_CATEGORIES: Category[] = [
-  { id: 'cat_lang', name: '语言 / Language', order: 0, tags: [
-    { id: 'tag_python', name: 'Python', order: 0 },
-    { id: 'tag_typescript', name: 'TypeScript', order: 1 },
-    { id: 'tag_rust', name: 'Rust', order: 2 },
-    { id: 'tag_go', name: 'Go', order: 3 },
-  ] },
-  { id: 'cat_framework', name: '框架 / Framework', order: 1, tags: [
-    { id: 'tag_react', name: 'React', order: 0 },
-    { id: 'tag_vue', name: 'Vue', order: 1 },
-    { id: 'tag_nextjs', name: 'Next.js', order: 2 },
-  ] },
-  { id: 'cat_tooling', name: '工具 / Tooling', order: 2, tags: [
-    { id: 'tag_cli', name: 'CLI', order: 0 },
-    { id: 'tag_build', name: '构建工具', order: 1 },
-    { id: 'tag_devtools', name: '开发辅助', order: 2 },
-  ] },
-  { id: 'cat_ai', name: 'AI / ML', order: 3, tags: [
-    { id: 'tag_llm', name: 'LLM', order: 0 },
-    { id: 'tag_training', name: '训练框架', order: 1 },
-    { id: 'tag_inference', name: '推理', order: 2 },
-  ] },
-  { id: 'cat_infra', name: '基础设施 / Infra', order: 4, tags: [
-    { id: 'tag_docker', name: 'Docker', order: 0 },
-    { id: 'tag_k8s', name: 'K8s', order: 1 },
-    { id: 'tag_cicd', name: 'CI/CD', order: 2 },
-  ] },
-  { id: 'cat_database', name: '数据库 / Database', order: 5, tags: [
-    { id: 'tag_orm', name: 'ORM', order: 0 },
-    { id: 'tag_migration', name: '迁移工具', order: 1 },
-  ] },
-  { id: 'cat_learning', name: '学习资源 / Learning', order: 6, tags: [
-    { id: 'tag_tutorial', name: '教程', order: 0 },
-    { id: 'tag_awesome', name: 'Awesome 列表', order: 1 },
-  ] },
-  { id: 'cat_app', name: '应用 / App', order: 7, tags: [
-    { id: 'tag_saas', name: 'SaaS', order: 0 },
-    { id: 'tag_opensource', name: '开源服务', order: 1 },
-  ] },
-]
+function langTagId(language: string): string {
+  return `tag_lang_${language.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+}
 
-export const useTagStore = create<TagState>(set => ({
-  categories: MOCK_CATEGORIES,
+export const useTagStore = create<TagState>((set, get) => ({
+  categories: [],
+
   setCategories: categories => set({ categories }),
+
   addCategory: (name) => {
     const catId = `cat_${name.toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
-    set(state => ({
-      categories: [...state.categories, { id: catId, name, order: state.categories.length, tags: [] }],
-    }))
+    set(state => {
+      if (state.categories.find(c => c.id === catId)) return state
+      return {
+        categories: [...state.categories, { id: catId, name, order: state.categories.length, tags: [] }],
+      }
+    })
+    return catId
   },
+
   deleteCategory: (catId) => {
     set(state => ({
       categories: state.categories.filter(c => c.id !== catId),
     }))
   },
+
   renameCategory: (catId, name) => {
     set(state => ({
       categories: state.categories.map(c =>
@@ -74,6 +48,7 @@ export const useTagStore = create<TagState>(set => ({
       ),
     }))
   },
+
   addTag: (catId, name) => {
     const tagId = `tag_${name.toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
     set(state => ({
@@ -83,7 +58,9 @@ export const useTagStore = create<TagState>(set => ({
           : cat,
       ),
     }))
+    return tagId
   },
+
   deleteTag: (catId, tagId) => {
     set(state => ({
       categories: state.categories.map(cat =>
@@ -93,6 +70,7 @@ export const useTagStore = create<TagState>(set => ({
       ),
     }))
   },
+
   renameTag: (catId, tagId, name) => {
     set(state => ({
       categories: state.categories.map(cat =>
@@ -101,5 +79,36 @@ export const useTagStore = create<TagState>(set => ({
           : cat,
       ),
     }))
+  },
+
+  seedDefaultCategories: () => {
+    const { categories } = get()
+    if (categories.length > 0) return
+    set({ categories: DEFAULT_CATEGORIES })
+  },
+
+  ensureLanguageTag: (language) => {
+    const tagId = langTagId(language)
+    const { categories } = get()
+    let langCat = categories.find(c => c.id === 'cat_language')
+
+    if (!langCat) {
+      const newCat: Category = { id: 'cat_language', name: '语言 / Language', order: 0, tags: [] }
+      set(s => ({ categories: [newCat, ...s.categories] }))
+      langCat = newCat
+    }
+
+    const exists = langCat.tags.find(t => t.id === tagId)
+    if (exists) return tagId
+
+    const tagCount = langCat.tags.length
+    set(state => ({
+      categories: state.categories.map(cat =>
+        cat.id === 'cat_language'
+          ? { ...cat, tags: [...cat.tags, { id: tagId, name: language, order: tagCount }] }
+          : cat,
+      ),
+    }))
+    return tagId
   },
 }))
