@@ -12,6 +12,7 @@ export function RepoList() {
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
   const sortBy = useUiStore(s => s.sortBy)
   const sortDir = useUiStore(s => s.sortDir)
+  const searchQuery = useUiStore(s => s.searchQuery)
 
   const filteredRepos = useMemo(() => {
     let filtered = [...repos]
@@ -36,6 +37,25 @@ export function RepoList() {
       filtered = []
     }
 
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const tagNameMap = new Map<string, string>()
+      for (const cat of categories) {
+        for (const t of cat.tags) {
+          tagNameMap.set(t.id, t.name.toLowerCase())
+        }
+      }
+      filtered = filtered.filter((r) => {
+        if (r.full_name.toLowerCase().includes(q))
+          return true
+        if (r.description?.toLowerCase().includes(q))
+          return true
+        if (r.tags?.some(tid => tagNameMap.get(tid)?.includes(q)))
+          return true
+        return false
+      })
+    }
+
     filtered.sort((a, b) => {
       let cmp = 0
       if (sortBy === 'starred_at')
@@ -50,7 +70,7 @@ export function RepoList() {
     })
 
     return filtered
-  }, [repos, categories, activeFilter, sortBy, sortDir])
+  }, [repos, categories, activeFilter, sortBy, sortDir, searchQuery])
 
   return (
     <div className="flex-1 overflow-y-auto">

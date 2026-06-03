@@ -12,6 +12,8 @@ export function RepoToolbar() {
   const isMobile = useUiStore(s => s.isMobile)
   const setSortBy = useUiStore(s => s.setSortBy)
   const setSortDir = useUiStore(s => s.setSortDir)
+  const searchQuery = useUiStore(s => s.searchQuery)
+  const setSearchQuery = useUiStore(s => s.setSearchQuery)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
   const setToast = useUiStore(s => s.setToast)
 
@@ -84,6 +86,8 @@ export function RepoToolbar() {
             type="text"
             placeholder="搜索仓库名、描述、标签..."
             className="gh-input text-sm"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
             style={{ height: isMobile ? 36 : 32, paddingLeft: 32 }}
           />
         </div>

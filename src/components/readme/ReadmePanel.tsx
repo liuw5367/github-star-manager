@@ -1,24 +1,144 @@
-import { useEffect, useState } from 'react'
+import MarkdownIt from 'markdown-it'
+import { useEffect, useRef, useState } from 'react'
+import { getReadme } from '../../api/github'
 import { formatStars, getLanguageColor } from '../../lib/utils'
+import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useUiStore } from '../../stores/uiStore'
 import { CloseIcon, ExternalIcon, StarIcon } from '../shared/Icons'
 
+let md: MarkdownIt | null = null
+let mdInit: Promise<void> | null = null
+
+async function ensureMd(dark: boolean) {
+  const theme = dark ? 'github-dark' : 'github-light'
+
+  if (md && (md as any).__shikiTheme === theme)
+    return
+
+  mdInit = (async () => {
+    const instance = new MarkdownIt({
+      html: true,
+      linkify: true,
+      breaks: true,
+    })
+
+    const fence = instance.renderer.rules.fence
+    instance.renderer.rules.fence = (tokens, idx, options, env, self) => {
+      const token = tokens[idx]
+      if (token.info.trim() === 'mermaid') {
+        return `<div class="mermaid">${token.content}</div>`
+      }
+      return fence?.(tokens, idx, options, env, self) ?? ''
+    }
+
+    try {
+      const shikiPlugin = await (await import('@shikijs/markdown-it')).default({ theme })
+      instance.use(shikiPlugin)
+    }
+    catch {}
+
+    try {
+      const katex = (await import('markdown-it-katex')).default
+      instance.use(katex)
+    }
+    catch {}
+
+    ;(instance as any).__shikiTheme = theme
+    md = instance
+  })()
+
+  await mdInit
+}
+
+function resolveRelativePaths(html: string, owner: string, repo: string): string {
+  const rawBase = `https://github.com/${owner}/${repo}/raw/main`
+  const blobBase = `https://github.com/${owner}/${repo}/blob/main`
+
+  return html
+    .replace(/(src=["'])(\.\/)?([^"'#?]+)/g, (m, pre, _dot, path) => {
+      if (path.startsWith('http') || path.startsWith('data:'))
+        return m
+      return `${pre}${rawBase}/${path}`
+    })
+    .replace(/(href=["'])(\.\/)?([^"'#?]+)/g, (m, pre, _dot, path) => {
+      if (path.startsWith('http') || path.startsWith('#') || path.startsWith('mailto:'))
+        return m
+      return `${pre}${blobBase}/${path}`
+    })
+}
+
 export function ReadmePanel() {
   const selectedRepoName = useUiStore(s => s.selectedRepo)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
+  const theme = useUiStore(s => s.theme)
+  const pat = useAuthStore(s => s.pat)
   const repos = useRepoStore(s => s.repos)
   const repo = repos.find(r => r.full_name === selectedRepoName)
+  const contentRef = useRef<HTMLDivElement>(null)
+
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [readmeHtml, setReadmeHtml] = useState('')
+
+  function isDark(): boolean {
+    if (theme === 'dark')
+      return true
+    if (theme === 'light')
+      return false
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
 
   useEffect(() => {
     if (!repo)
       return
 
     setLoading(true)
-    const t = setTimeout(setLoading, 800, false)
-    return () => clearTimeout(t)
-  }, [repo?.full_name])
+    setError('')
+    setReadmeHtml('')
+
+    const [owner, name] = repo.full_name.split('/')
+
+    ;(async () => {
+      try {
+        await ensureMd(isDark())
+        const raw = await getReadme(pat, owner, name)
+        if (!raw) {
+          setError('此仓库没有 README 文件')
+          return
+        }
+        const rendered = md!.render(raw)
+        setReadmeHtml(resolveRelativePaths(rendered, owner, name))
+      }
+      catch (err) {
+        setError(err instanceof Error ? err.message : '加载 README 失败')
+      }
+      finally {
+        setLoading(false)
+      }
+    })()
+  }, [repo?.full_name, theme])
+
+  useEffect(() => {
+    if (!readmeHtml || !contentRef.current)
+      return
+
+    const initMermaid = async () => {
+      if (!contentRef.current!.querySelector('.mermaid'))
+        return
+      try {
+        const mermaid = (await import('mermaid')).default
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: isDark() ? 'dark' : 'default',
+        })
+        await mermaid.run({ nodes: contentRef.current!.querySelectorAll('.mermaid') })
+      }
+      catch {}
+    }
+
+    initMermaid()
+  }, [readmeHtml])
 
   if (!repo)
     return null
@@ -88,33 +208,21 @@ export function ReadmePanel() {
                 <div className="skeleton h-4 w-2/3" />
               </div>
             )
-          : (
-              <div className="p-6 readme-content" style={{ maxWidth: 800 }}>
-                <div dangerouslySetInnerHTML={{ __html: MOCK_README_HTML }} />
-              </div>
-            )}
+          : error
+            ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gh-fg-muted">
+                  <p className="text-sm">{error}</p>
+                </div>
+              )
+            : (
+                <div
+                  ref={contentRef}
+                  className="p-6 readme-content"
+                  style={{ maxWidth: 800 }}
+                  dangerouslySetInnerHTML={{ __html: readmeHtml }}
+                />
+              )}
       </div>
     </div>
   )
 }
-
-const MOCK_README_HTML = `
-<h1>React</h1>
-<p>React is a JavaScript library for building user interfaces.</p>
-<h2>Installation</h2>
-<pre><code class="language-bash">npm install react react-dom</code></pre>
-<h2>Quick Start</h2>
-<pre><code class="language-jsx">import { createRoot } from 'react-dom/client';
-
-function App() {
-  return &lt;h1&gt;Hello, world!&lt;/h1&gt;;
-}
-
-createRoot(document.getElementById('root')).render(&lt;App /&gt;);</code></pre>
-<h2>Features</h2>
-<ul>
-<li><strong>Declarative</strong>: React makes it painless to create interactive UIs.</li>
-<li><strong>Component-Based</strong>: Build encapsulated components that manage their own state.</li>
-<li><strong>Learn Once, Write Anywhere</strong>: Develop new features without rewriting existing code.</li>
-</ul>
-`

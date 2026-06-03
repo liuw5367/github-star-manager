@@ -6,6 +6,7 @@ interface UiState {
   collapsedCats: string[]
   sortBy: string
   sortDir: 'asc' | 'desc'
+  searchQuery: string
   theme: 'system' | 'light' | 'dark'
   isMobile: boolean
   mobileSidebarOpen: boolean
@@ -16,6 +17,7 @@ interface UiState {
   toggleCat: (catId: string) => void
   setSortBy: (field: string) => void
   setSortDir: (dir: 'asc' | 'desc') => void
+  setSearchQuery: (query: string) => void
   setTheme: (theme: 'system' | 'light' | 'dark') => void
   setIsMobile: (isMobile: boolean) => void
   setMobileSidebarOpen: (open: boolean) => void
@@ -29,6 +31,7 @@ export const useUiStore = create<UiState>(set => ({
   collapsedCats: [],
   sortBy: 'starred_at',
   sortDir: 'desc',
+  searchQuery: '',
   theme: (localStorage.getItem('gsm_theme') as UiState['theme']) || 'system',
   isMobile: false,
   mobileSidebarOpen: false,
@@ -43,6 +46,7 @@ export const useUiStore = create<UiState>(set => ({
   })),
   setSortBy: sortBy => set({ sortBy }),
   setSortDir: sortDir => set({ sortDir }),
+  setSearchQuery: searchQuery => set({ searchQuery }),
   setTheme: (theme) => {
     localStorage.setItem('gsm_theme', theme)
     set({ theme })
