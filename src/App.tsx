@@ -15,7 +15,6 @@ export default function App() {
   const setGistId = useAuthStore(s => s.setGistId)
   const setRepos = useRepoStore(s => s.setRepos)
   const setCategories = useTagStore(s => s.setCategories)
-  const seedDefaultCategories = useTagStore(s => s.seedDefaultCategories)
 
   useEffect(() => {
     if (isAuth) return
@@ -59,9 +58,6 @@ export default function App() {
             }
             catch {}
           }
-        }
-        else {
-          seedDefaultCategories()
         }
         login(storedPat, user)
       }

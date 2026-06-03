@@ -11,7 +11,6 @@ export function AuthPage() {
   const setGistId = useAuthStore(s => s.setGistId)
   const pat = useAuthStore(s => s.pat)
   const gistId = useAuthStore(s => s.gistId)
-  const seedDefaultCategories = useTagStore(s => s.seedDefaultCategories)
   const setCategories = useTagStore(s => s.setCategories)
   const setRepos = useRepoStore(s => s.setRepos)
 
@@ -46,7 +45,6 @@ export function AuthPage() {
     try {
       const id = await createGist(inputPat.trim())
       setGistId(id)
-      seedDefaultCategories()
       login(inputPat.trim(), validUser)
     }
     catch {

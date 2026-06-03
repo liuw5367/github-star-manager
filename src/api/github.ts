@@ -58,23 +58,28 @@ export async function getStarred(
 
     const data = await res.json()
     for (const item of data) {
+      const repo = item.repo || item
       results.push({
-        full_name: item.full_name,
-        description: item.description,
-        language: item.language,
-        stargazers_count: item.stargazers_count,
-        updated_at: item.updated_at,
-        starred_at: item.starred_at,
-        topics: item.topics || [],
-        fork: item.fork,
-        archived: item.archived,
-        license: item.license,
-        forks_count: item.forks_count,
-        created_at: item.created_at,
-        homepage: item.homepage,
+        full_name: repo.full_name,
+        description: repo.description,
+        language: repo.language,
+        stargazers_count: repo.stargazers_count,
+        updated_at: repo.updated_at,
+        starred_at: item.starred_at || repo.starred_at,
+        topics: repo.topics || [],
+        fork: repo.fork,
+        archived: repo.archived,
+        license: repo.license,
+        forks_count: repo.forks_count,
+        created_at: repo.created_at,
+        homepage: repo.homepage,
       })
     }
     page++
+
+    if (page <= totalPages) {
+      await new Promise(r => setTimeout(r, 500))
+    }
   }
 
   return results

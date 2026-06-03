@@ -1,6 +1,5 @@
 import type { Category } from '../types'
 import { create } from 'zustand'
-import { DEFAULT_CATEGORIES } from '../api/gist'
 
 interface TagState {
   categories: Category[]
@@ -11,7 +10,6 @@ interface TagState {
   addTag: (catId: string, name: string) => string
   deleteTag: (catId: string, tagId: string) => void
   renameTag: (catId: string, tagId: string, name: string) => void
-  seedDefaultCategories: () => void
   ensureLanguageTag: (language: string) => string
 }
 
@@ -79,12 +77,6 @@ export const useTagStore = create<TagState>((set, get) => ({
           : cat,
       ),
     }))
-  },
-
-  seedDefaultCategories: () => {
-    const { categories } = get()
-    if (categories.length > 0) return
-    set({ categories: DEFAULT_CATEGORIES })
   },
 
   ensureLanguageTag: (language) => {
