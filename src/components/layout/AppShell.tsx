@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useUiStore } from '../../stores/uiStore'
 import { TagManagerModal } from '../modals/TagManagerModal'
 import { ReadmePanel } from '../readme/ReadmePanel'
@@ -6,6 +6,21 @@ import { RepoList } from '../repo-list/RepoList'
 import { RepoToolbar } from '../repo-list/RepoToolbar'
 import { Toast } from '../shared/Toast'
 import { CategoryNav } from '../sidebar/CategoryNav'
+import { Splitter } from './Splitter'
+
+function loadWidth(key: string, fallback: number): number {
+  try {
+    const v = localStorage.getItem(key)
+    return v ? Math.max(Number(v), 160) : fallback
+  }
+  catch {
+    return fallback
+  }
+}
+
+function saveWidth(key: string, val: number) {
+  localStorage.setItem(key, String(val))
+}
 
 export default function AppShell() {
   const selectedRepo = useUiStore(s => s.selectedRepo)
@@ -16,6 +31,25 @@ export default function AppShell() {
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
   const theme = useUiStore(s => s.theme)
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => loadWidth('gsm_sidebar_width', 200))
+  const [repoListWidth, setRepoListWidth] = useState(() => loadWidth('gsm_list_width', 360))
+
+  const updateSidebar = useCallback((delta: number) => {
+    setSidebarWidth(prev => {
+      const next = Math.min(Math.max(prev + delta, 160), 400)
+      saveWidth('gsm_sidebar_width', next)
+      return next
+    })
+  }, [])
+
+  const updateRepoList = useCallback((delta: number) => {
+    setRepoListWidth(prev => {
+      const next = Math.min(Math.max(prev + delta, 240), 600)
+      saveWidth('gsm_list_width', next)
+      return next
+    })
+  }, [])
 
   // Apply theme
   useEffect(() => {
@@ -65,16 +99,19 @@ export default function AppShell() {
 
       {/* Desktop sidebar */}
       {!isMobile && (
-        <div className="flex-shrink-0 border-r border-gh-border bg-gh-canvas/30 overflow-hidden" style={{ width: 200 }}>
-          <CategoryNav />
+        <div className="flex-shrink-0 flex">
+          <div className="border-r border-gh-border bg-gh-canvas/30 overflow-hidden" style={{ width: sidebarWidth }}>
+            <CategoryNav />
+          </div>
+          <Splitter onResize={updateSidebar} />
         </div>
       )}
 
       {/* Center: Repo List */}
       <div
-        className="flex flex-col border-r border-gh-border panel-transition overflow-hidden"
+        className="flex flex-col border-r border-gh-border overflow-hidden"
         style={{
-          width: (!isMobile && selectedRepo) ? 360 : '100%',
+          width: (!isMobile && selectedRepo) ? repoListWidth : '100%',
           minWidth: isMobile ? 0 : 320,
         }}
       >
@@ -84,9 +121,12 @@ export default function AppShell() {
 
       {/* Desktop: README Panel */}
       {!isMobile && selectedRepo && (
-        <div className="flex-1 overflow-hidden panel-transition bg-white dark:bg-gh-canvas">
-          <ReadmePanel />
-        </div>
+        <>
+          <Splitter onResize={updateRepoList} />
+          <div className="flex-1 overflow-hidden bg-white dark:bg-gh-canvas">
+            <ReadmePanel />
+          </div>
+        </>
       )}
 
       {/* Mobile: README overlay */}
