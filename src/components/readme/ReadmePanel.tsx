@@ -20,7 +20,6 @@ async function ensureMd(dark: boolean) {
     const instance = new MarkdownIt({
       html: true,
       linkify: true,
-      breaks: true,
     })
 
     const fence = instance.renderer.rules.fence
@@ -49,6 +48,12 @@ async function ensureMd(dark: boolean) {
   })()
 
   await mdInit
+}
+
+function wrapCodeBlocks(html: string): string {
+  return html
+    .replace(/<pre(\s|>)/g, '<div class="code-block-wrapper"><button class="code-copy-btn" type="button">复制</button><pre$1')
+    .replace(/<\/pre>/g, '</pre></div>')
 }
 
 function resolveRelativePaths(html: string, owner: string, repo: string): string {
@@ -117,7 +122,7 @@ export function ReadmePanel() {
         }
         const rendered = md!.render(raw)
         if (!cancelled)
-          setReadmeHtml(resolveRelativePaths(rendered, owner, name))
+          setReadmeHtml(resolveRelativePaths(wrapCodeBlocks(rendered), owner, name))
       }
       catch (err) {
         if (!cancelled)
@@ -138,8 +143,10 @@ export function ReadmePanel() {
     if (!readmeHtml || !contentRef.current)
       return
 
+    const el = contentRef.current
+
     const initMermaid = async () => {
-      if (!contentRef.current!.querySelector('.mermaid'))
+      if (!el.querySelector('.mermaid'))
         return
       try {
         const mermaid = (await import('mermaid')).default
@@ -147,12 +154,36 @@ export function ReadmePanel() {
           startOnLoad: false,
           theme: isDark ? 'dark' : 'default',
         })
-        await mermaid.run({ nodes: contentRef.current!.querySelectorAll('.mermaid') })
+        await mermaid.run({ nodes: el.querySelectorAll('.mermaid') })
       }
       catch {}
     }
 
     initMermaid()
+
+    const copyHandler = (e: MouseEvent) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.code-copy-btn')
+      if (!btn)
+        return
+
+      const pre = btn.closest('.code-block-wrapper')?.querySelector('pre')
+      if (!pre)
+        return
+
+      const code = pre.textContent || ''
+      navigator.clipboard.writeText(code).then(() => {
+        const orig = btn.textContent || '复制'
+        btn.textContent = '已复制'
+        btn.classList.add('copied')
+        setTimeout(() => {
+          btn.textContent = orig
+          btn.classList.remove('copied')
+        }, 2000)
+      }).catch(() => {})
+    }
+
+    el.addEventListener('click', copyHandler)
+    return () => el.removeEventListener('click', copyHandler)
   }, [readmeHtml, isDark])
 
   if (!repo)

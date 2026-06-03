@@ -52,9 +52,6 @@ body {
 .dark body, .dark #root {
   background: var(--color-gh-canvas);
 }
-.dark body {
-  background: #0d1117;
-}
 
 :focus-visible {
   outline: 2px solid var(--color-gh-accent);
@@ -176,9 +173,6 @@ body {
 .dark .skeleton {
   background: linear-gradient(90deg, #161b22 25%, #1c2128 50%, #161b22 75%);
 }
-.dark .readme-content code {
-  background: rgba(240, 246, 252, 0.15);
-}
 
 /* Toast animation */
 @keyframes slide-in {
@@ -201,14 +195,53 @@ body {
   font-size: 85%;
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
+.dark .readme-content code {
+  background: rgba(240, 246, 252, 0.15);
+}
 .readme-content pre {
-  background: var(--color-gh-canvas);
+  background: var(--color-gh-canvas) !important;
   border-radius: 6px;
   padding: 16px;
   overflow-x: auto;
   margin: 0 0 16px;
 }
-.readme-content pre code { background: transparent; padding: 0; }
+.dark .readme-content pre {
+  background: var(--color-gh-canvas-subtle) !important;
+}
+.readme-content pre code { background: transparent !important; padding: 0; }
+
+.code-block-wrapper {
+  position: relative;
+}
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1;
+  border: 1px solid var(--color-gh-border);
+  border-radius: 6px;
+  background: var(--color-gh-canvas);
+  color: var(--color-gh-fg-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.code-block-wrapper:hover .code-copy-btn {
+  opacity: 1;
+}
+.code-copy-btn:hover {
+  background: var(--color-gh-canvas-subtle);
+  color: var(--color-gh-fg);
+}
+.code-copy-btn.copied {
+  border-color: var(--color-gh-success);
+  color: var(--color-gh-success);
+}
+
 .readme-content ul, .readme-content ol { padding-left: 2em; margin: 0 0 16px; }
 .readme-content li { margin: 4px 0; }
 .readme-content blockquote {
