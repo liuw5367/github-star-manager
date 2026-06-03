@@ -43,19 +43,18 @@ export async function getStarred(
   onProgress?: (page: number, total: number) => void,
 ): Promise<StarredRepo[]> {
   const results: StarredRepo[] = []
+  const perPage = 100
   let page = 1
-  let totalPages = 1
 
-  while (page <= totalPages) {
-    const url = `${BASE}/user/starred?per_page=100&page=${page}&sort=created&direction=desc`
+  while (true) {
+    const url = `${BASE}/user/starred?per_page=${perPage}&page=${page}&sort=created&direction=desc`
     const res = await fetch(url, { headers: headers(pat) })
     if (!res.ok)
       throw new Error(`拉取 Star 列表失败 (${res.status})`)
 
     const link = res.headers.get('link') || ''
     const lastMatch = link.match(/[?&]page=(\d+)[^>]*>; rel="last"/)
-    if (lastMatch)
-      totalPages = Number(lastMatch[1])
+    const totalPages = lastMatch ? Number(lastMatch[1]) : page
 
     onProgress?.(page, totalPages)
 
@@ -78,11 +77,12 @@ export async function getStarred(
         homepage: repo.homepage,
       })
     }
-    page++
 
-    if (page <= totalPages) {
-      await new Promise(r => setTimeout(r, 500))
-    }
+    if (data.length < perPage)
+      break
+
+    page++
+    await new Promise(r => setTimeout(r, 500))
   }
 
   return results
