@@ -78,7 +78,7 @@ export async function getStarred(
       })
     }
 
-    if (data.length < perPage)
+    if (data.length < perPage || !link.includes('rel="next"'))
       break
 
     page++
