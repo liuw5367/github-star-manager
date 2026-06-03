@@ -53,7 +53,7 @@ export async function getStarred(
       throw new Error(`拉取 Star 列表失败 (${res.status})`)
 
     const link = res.headers.get('link') || ''
-    const lastMatch = link.match(/page=(\d+)>; rel="last"/)
+    const lastMatch = link.match(/[?&]page=(\d+)[^>]*>; rel="last"/)
     if (lastMatch)
       totalPages = Number(lastMatch[1])
 
