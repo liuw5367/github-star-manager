@@ -1,23 +1,23 @@
 import { useEffect } from 'react'
+import { getGistFiles } from './api/gist'
+import { getUser } from './api/github'
+import { AuthPage } from './components/auth/AuthPage'
+import AppShell from './components/layout/AppShell'
 import { useAuthStore } from './stores/authStore'
 import { useRepoStore } from './stores/repoStore'
 import { useTagStore } from './stores/tagStore'
-import AppShell from './components/layout/AppShell'
-import { AuthPage } from './components/auth/AuthPage'
-import { getUser } from './api/github'
-import { getGistFiles } from './api/gist'
 
 export default function App() {
   const isAuth = useAuthStore(s => s.isAuth)
   const checking = useAuthStore(s => s.checking)
   const login = useAuthStore(s => s.login)
   const setCheckingDone = useAuthStore(s => s.setCheckingDone)
-  const setGistId = useAuthStore(s => s.setGistId)
   const setRepos = useRepoStore(s => s.setRepos)
   const setCategories = useTagStore(s => s.setCategories)
 
   useEffect(() => {
-    if (isAuth) return
+    if (isAuth)
+      return
     const storedPat = localStorage.getItem('github_star_manager_pat')
     const storedGist = localStorage.getItem('github_star_manager_gist_id')
 
@@ -34,7 +34,8 @@ export default function App() {
           if (files['categories.json']) {
             try {
               const cats = JSON.parse(files['categories.json'])
-              if (cats.categories?.length) setCategories(cats.categories)
+              if (cats.categories?.length)
+                setCategories(cats.categories)
             }
             catch {}
           }
@@ -67,7 +68,7 @@ export default function App() {
         setCheckingDone()
       }
     })()
-  }, [])
+  }, [isAuth, login, setCategories, setCheckingDone, setRepos])
 
   if (checking) {
     return (
@@ -77,7 +78,8 @@ export default function App() {
     )
   }
 
-  if (!isAuth) return <AuthPage />
+  if (!isAuth)
+    return <AuthPage />
 
   return <AppShell />
 }

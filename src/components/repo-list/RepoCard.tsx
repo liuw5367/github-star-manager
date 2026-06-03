@@ -35,7 +35,12 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       style={{ padding: '12px 12px 10px' }}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <img
+            src={`https://github.com/${repo.full_name.split('/')[0]}.png?size=20`}
+            alt=""
+            className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5"
+          />
           <span className="text-sm font-semibold text-gh-accent hover:underline truncate block">
             {repo.full_name}
           </span>

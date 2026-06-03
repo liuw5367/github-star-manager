@@ -5,26 +5,28 @@ interface SplitterProps {
 }
 
 export function Splitter({ onResize }: SplitterProps) {
-  const dragging = useRef(false)
-  const startX = useRef(0)
+  const draggingRef = useRef(false)
+  const startXRef = useRef(0)
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
-    dragging.current = true
-    startX.current = e.clientX
+    draggingRef.current = true
+    startXRef.current = e.clientX
     e.preventDefault()
   }, [])
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      if (!dragging.current) return
-      const delta = e.clientX - startX.current
-      if (Math.abs(delta) < 2) return
+      if (!draggingRef.current)
+        return
+      const delta = e.clientX - startXRef.current
+      if (Math.abs(delta) < 2)
+        return
       onResize(delta)
-      startX.current = e.clientX
+      startXRef.current = e.clientX
     }
 
     const onMouseUp = () => {
-      dragging.current = false
+      draggingRef.current = false
     }
 
     document.addEventListener('mousemove', onMouseMove)

@@ -39,7 +39,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
         left = window.innerWidth - pickerW - 16
       if (left < 16)
         left = 16
-      setPos({ top, left })
+      queueMicrotask(() => setPos({ top, left }))
     }
   }, [anchorRef])
 

@@ -1,7 +1,7 @@
 import type { Repo } from '../types'
 import { create } from 'zustand'
-import * as github from '../api/github'
 import * as gist from '../api/gist'
+import * as github from '../api/github'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
 
@@ -45,8 +45,10 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
   syncStarred: async () => {
     const { pat, gistId } = useAuthStore.getState()
-    if (!pat) throw new Error('未设置 PAT')
-    if (!gistId) throw new Error('未设置 Gist')
+    if (!pat)
+      throw new Error('未设置 PAT')
+    if (!gistId)
+      throw new Error('未设置 Gist')
 
     set({ syncing: true, syncProgress: '正在拉取 Star 数据...' })
 
@@ -64,14 +66,15 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       const newRepos = starredRepos.filter(r => !existingNames.has(r.full_name))
       const removedRepos = existing.filter(r => !starredNames.has(r.full_name))
 
-      const { ensureLanguageTag, categories } = useTagStore.getState()
+      const { ensureLanguageTag } = useTagStore.getState()
 
       const createdTags: string[] = []
       const reposToAdd: Repo[] = newRepos.map((sr) => {
         const tags: string[] = []
         if (sr.language) {
           const tagId = ensureLanguageTag(sr.language)
-          if (!createdTags.includes(tagId)) createdTags.push(tagId)
+          if (!createdTags.includes(tagId))
+            createdTags.push(tagId)
           tags.push(tagId)
         }
         return {
@@ -87,7 +90,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       })
 
       const existingMap = new Map(existing.map(r => [r.full_name, r]))
-      const updatedRepos: Repo[] = starredRepos.map(sr => {
+      const updatedRepos: Repo[] = starredRepos.map((sr) => {
         const old = existingMap.get(sr.full_name)
         if (old) {
           return {
@@ -112,7 +115,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       })
 
       const now = new Date().toISOString()
-      const trash: Record<string, { tags: string[]; note: string; trashed_at: string }> = {}
+      const trash: Record<string, { tags: string[], note: string, trashed_at: string }> = {}
       removedRepos.forEach((r) => {
         trash[r.full_name] = { tags: r.tags, note: r.note, trashed_at: now }
       })
@@ -121,11 +124,13 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
       const tagMap: Record<string, string[]> = {}
       updatedRepos.forEach((r) => {
-        if (r.tags.length > 0) tagMap[r.full_name] = r.tags
+        if (r.tags.length > 0)
+          tagMap[r.full_name] = r.tags
       })
       const noteMap: Record<string, string> = {}
       updatedRepos.forEach((r) => {
-        if (r.note) noteMap[r.full_name] = r.note
+        if (r.note)
+          noteMap[r.full_name] = r.note
       })
 
       const currentCategories = useTagStore.getState().categories
@@ -148,7 +153,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
 
   toggleTag: (fullName, tagId) => {
-    set(state => {
+    set((state) => {
       const updated = state.repos.map(r =>
         r.full_name === fullName
           ? { ...r, tags: r.tags.includes(tagId) ? r.tags.filter(t => t !== tagId) : [...r.tags, tagId] }
@@ -160,7 +165,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
 
   addTag: (fullName, tagId) => {
-    set(state => {
+    set((state) => {
       const updated = state.repos.map(r =>
         r.full_name === fullName && !r.tags.includes(tagId)
           ? { ...r, tags: [...r.tags, tagId] }
@@ -172,7 +177,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
 
   removeTag: (fullName, tagId) => {
-    set(state => {
+    set((state) => {
       const updated = state.repos.map(r =>
         r.full_name === fullName
           ? { ...r, tags: r.tags.filter(t => t !== tagId) }
@@ -184,7 +189,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
 
   setNote: (fullName, note) => {
-    set(state => {
+    set((state) => {
       const updated = state.repos.map(r =>
         r.full_name === fullName ? { ...r, note } : r,
       )

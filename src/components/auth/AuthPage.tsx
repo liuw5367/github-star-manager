@@ -1,18 +1,14 @@
-import { useState } from 'react'
-import { useAuthStore } from '../../stores/authStore'
-import { useTagStore } from '../../stores/tagStore'
-import { useRepoStore } from '../../stores/repoStore'
-import { getUser } from '../../api/github'
-import { createGist, getGistFiles } from '../../api/gist'
 import type { User } from '../../types'
+import { useState } from 'react'
+import { createGist } from '../../api/gist'
+import { getUser } from '../../api/github'
+import { useAuthStore } from '../../stores/authStore'
 
 export function AuthPage() {
   const login = useAuthStore(s => s.login)
   const setGistId = useAuthStore(s => s.setGistId)
   const pat = useAuthStore(s => s.pat)
   const gistId = useAuthStore(s => s.gistId)
-  const setCategories = useTagStore(s => s.setCategories)
-  const setRepos = useRepoStore(s => s.setRepos)
 
   const [inputPat, setInputPat] = useState(pat)
   const [validating, setValidating] = useState(false)
@@ -22,7 +18,8 @@ export function AuthPage() {
   const [step, setStep] = useState<'pat' | 'gist'>(pat ? 'gist' : 'pat')
 
   const handleValidate = async () => {
-    if (!inputPat.trim()) return
+    if (!inputPat.trim())
+      return
     setValidating(true)
     setError('')
     try {
@@ -39,7 +36,8 @@ export function AuthPage() {
   }
 
   const handleCreateGist = async () => {
-    if (!validUser) return
+    if (!validUser)
+      return
     setCreating(true)
     setError('')
     try {
@@ -56,7 +54,8 @@ export function AuthPage() {
   }
 
   const handleUseExisting = () => {
-    if (!validUser) return
+    if (!validUser)
+      return
     login(inputPat.trim(), validUser)
   }
 
@@ -85,9 +84,21 @@ export function AuthPage() {
             <div className="text-xs text-gh-fg-muted space-y-1">
               <p>需要以下权限：</p>
               <ul className="list-disc pl-4 space-y-0.5">
-                <li><code className="bg-gh-canvas-subtle px-1 rounded">read:user</code> — 读取账号信息</li>
-                <li><code className="bg-gh-canvas-subtle px-1 rounded">public_repo</code> — 读取 Star 列表</li>
-                <li><code className="bg-gh-canvas-subtle px-1 rounded">gist</code> — 读写数据存储</li>
+                <li>
+                  <code className="bg-gh-canvas-subtle px-1 rounded">read:user</code>
+                  {' '}
+                  — 读取账号信息
+                </li>
+                <li>
+                  <code className="bg-gh-canvas-subtle px-1 rounded">public_repo</code>
+                  {' '}
+                  — 读取 Star 列表
+                </li>
+                <li>
+                  <code className="bg-gh-canvas-subtle px-1 rounded">gist</code>
+                  {' '}
+                  — 读写数据存储
+                </li>
               </ul>
             </div>
             {error && <p className="text-xs text-gh-danger">{error}</p>}
@@ -114,7 +125,9 @@ export function AuthPage() {
 
             {gistId && (
               <div className="text-xs text-gh-fg-muted">
-                已有 Gist ID: <code className="text-gh-accent">{gistId}</code>
+                已有 Gist ID:
+                {' '}
+                <code className="text-gh-accent">{gistId}</code>
               </div>
             )}
 

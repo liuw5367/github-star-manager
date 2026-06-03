@@ -24,8 +24,9 @@ export const useTagStore = create<TagState>((set, get) => ({
 
   addCategory: (name) => {
     const catId = `cat_${name.toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
-    set(state => {
-      if (state.categories.find(c => c.id === catId)) return state
+    set((state) => {
+      if (state.categories.some(c => c.id === catId))
+        return state
       return {
         categories: [...state.categories, { id: catId, name, order: state.categories.length, tags: [] }],
       }
@@ -91,7 +92,8 @@ export const useTagStore = create<TagState>((set, get) => ({
     }
 
     const exists = langCat.tags.find(t => t.id === tagId)
-    if (exists) return tagId
+    if (exists)
+      return tagId
 
     const tagCount = langCat.tags.length
     set(state => ({

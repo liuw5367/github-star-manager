@@ -36,7 +36,7 @@ export default function AppShell() {
   const [repoListWidth, setRepoListWidth] = useState(() => loadWidth('gsm_list_width', 360))
 
   const updateSidebar = useCallback((delta: number) => {
-    setSidebarWidth(prev => {
+    setSidebarWidth((prev) => {
       const next = Math.min(Math.max(prev + delta, 160), 400)
       saveWidth('gsm_sidebar_width', next)
       return next
@@ -44,7 +44,7 @@ export default function AppShell() {
   }, [])
 
   const updateRepoList = useCallback((delta: number) => {
-    setRepoListWidth(prev => {
+    setRepoListWidth((prev) => {
       const next = Math.min(Math.max(prev + delta, 240), 600)
       saveWidth('gsm_list_width', next)
       return next

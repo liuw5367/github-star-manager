@@ -1,5 +1,3 @@
-import type { TrashItem } from '../types'
-
 const BASE = 'https://api.github.com'
 
 export interface GistFiles {
@@ -41,14 +39,16 @@ export async function createGist(pat: string): Promise<string> {
     }),
   })
 
-  if (!res.ok) throw new Error(`创建 Gist 失败 (${res.status})`)
+  if (!res.ok)
+    throw new Error(`创建 Gist 失败 (${res.status})`)
   const data = await res.json()
   return data.id
 }
 
 export async function getGistFiles(gistId: string, pat: string): Promise<GistFiles> {
   const res = await fetch(`${BASE}/gists/${gistId}`, { headers: headers(pat) })
-  if (!res.ok) throw new Error(`读取 Gist 失败 (${res.status})`)
+  if (!res.ok)
+    throw new Error(`读取 Gist 失败 (${res.status})`)
   const data = await res.json()
 
   const getContent = (name: string): string => {
@@ -81,6 +81,6 @@ export async function updateGistFiles(
     body: JSON.stringify({ files: bodyFiles }),
   })
 
-  if (!res.ok) throw new Error(`写入 Gist 失败 (${res.status})`)
+  if (!res.ok)
+    throw new Error(`写入 Gist 失败 (${res.status})`)
 }
-

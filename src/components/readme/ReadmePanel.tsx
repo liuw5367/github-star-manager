@@ -1,5 +1,5 @@
 import MarkdownIt from 'markdown-it'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getReadme } from '../../api/github'
 import { formatStars, getLanguageColor } from '../../lib/utils'
 import { useAuthStore } from '../../stores/authStore'
@@ -81,43 +81,58 @@ export function ReadmePanel() {
   const [error, setError] = useState('')
   const [readmeHtml, setReadmeHtml] = useState('')
 
-  function isDark(): boolean {
+  const isDark = useMemo(() => {
     if (theme === 'dark')
       return true
     if (theme === 'light')
       return false
     return window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
+  }, [theme])
 
   useEffect(() => {
     if (!repo)
       return
 
-    setLoading(true)
-    setError('')
-    setReadmeHtml('')
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled)
+        return
+      setLoading(true)
+      setError('')
+      setReadmeHtml('')
+    })
 
     const [owner, name] = repo.full_name.split('/')
 
     ;(async () => {
       try {
-        await ensureMd(isDark())
+        await ensureMd(isDark)
         const raw = await getReadme(pat, owner, name)
+        if (cancelled)
+          return
         if (!raw) {
           setError('此仓库没有 README 文件')
           return
         }
         const rendered = md!.render(raw)
-        setReadmeHtml(resolveRelativePaths(rendered, owner, name))
+        if (!cancelled)
+          setReadmeHtml(resolveRelativePaths(rendered, owner, name))
       }
       catch (err) {
-        setError(err instanceof Error ? err.message : '加载 README 失败')
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : '加载 README 失败')
       }
       finally {
-        setLoading(false)
+        if (!cancelled)
+          setLoading(false)
       }
     })()
-  }, [repo?.full_name, theme])
+
+    return () => {
+      cancelled = true
+    }
+  }, [repo?.full_name, theme, isDark, pat, repo])
 
   useEffect(() => {
     if (!readmeHtml || !contentRef.current)
@@ -130,7 +145,7 @@ export function ReadmePanel() {
         const mermaid = (await import('mermaid')).default
         mermaid.initialize({
           startOnLoad: false,
-          theme: isDark() ? 'dark' : 'default',
+          theme: isDark ? 'dark' : 'default',
         })
         await mermaid.run({ nodes: contentRef.current!.querySelectorAll('.mermaid') })
       }
@@ -138,7 +153,7 @@ export function ReadmePanel() {
     }
 
     initMermaid()
-  }, [readmeHtml])
+  }, [readmeHtml, isDark])
 
   if (!repo)
     return null

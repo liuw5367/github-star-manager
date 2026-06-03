@@ -11,7 +11,8 @@ function headers(pat: string): HeadersInit {
 
 export async function getUser(pat: string): Promise<User> {
   const res = await fetch(`${BASE}/user`, { headers: headers(pat) })
-  if (!res.ok) throw new Error(`PAT 无效 (${res.status})`)
+  if (!res.ok)
+    throw new Error(`PAT 无效 (${res.status})`)
   const data = await res.json()
   return {
     login: data.login,
@@ -48,11 +49,13 @@ export async function getStarred(
   while (page <= totalPages) {
     const url = `${BASE}/user/starred?per_page=100&page=${page}&sort=created&direction=desc`
     const res = await fetch(url, { headers: headers(pat) })
-    if (!res.ok) throw new Error(`拉取 Star 列表失败 (${res.status})`)
+    if (!res.ok)
+      throw new Error(`拉取 Star 列表失败 (${res.status})`)
 
     const link = res.headers.get('link') || ''
     const lastMatch = link.match(/page=(\d+)>; rel="last"/)
-    if (lastMatch) totalPages = Number(lastMatch[1])
+    if (lastMatch)
+      totalPages = Number(lastMatch[1])
 
     onProgress?.(page, totalPages)
 
@@ -92,7 +95,9 @@ export async function getReadme(pat: string, owner: string, repo: string): Promi
       Accept: 'application/vnd.github.raw+json',
     },
   })
-  if (res.status === 404) return ''
-  if (!res.ok) throw new Error(`拉取 README 失败 (${res.status})`)
+  if (res.status === 404)
+    return ''
+  if (!res.ok)
+    throw new Error(`拉取 README 失败 (${res.status})`)
   return res.text()
 }
