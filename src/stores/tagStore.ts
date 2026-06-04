@@ -1,5 +1,6 @@
 import type { Category, Repo } from '../types'
 import { create } from 'zustand'
+import { AUTO_CAT_ID, AUTO_CAT_NAME, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
 
 interface TagState {
   categories: Category[]
@@ -12,6 +13,9 @@ interface TagState {
   renameTag: (catId: string, tagId: string, name: string) => void
   ensureLanguageTag: (language: string) => string
   ensureAutoCategories: (repos: Repo[]) => void
+  ensureAutoCategory: () => Category
+  ensureAutoTag: (tagId: string, tagName: string) => void
+  syncAutoTags: (repos: Repo[]) => Set<string>
 }
 
 const AUTO_TAG_NAMES_KEY = 'gsm_auto_tag_names'
@@ -134,5 +138,36 @@ export const useTagStore = create<TagState>((set, get) => ({
         }
       }
     }
+  },
+
+  ensureAutoCategory: () => {
+    const { categories } = get()
+    const existing = categories.find(c => c.id === AUTO_CAT_ID)
+    if (existing) return existing
+    const newCat: Category = { id: AUTO_CAT_ID, name: AUTO_CAT_NAME, order: 0, tags: [] }
+    set(s => ({ categories: [newCat, ...s.categories] }))
+    return newCat
+  },
+
+  ensureAutoTag: (tagId, tagName) => {
+    set(state => ({
+      categories: state.categories.map(cat =>
+        cat.id === AUTO_CAT_ID && !cat.tags.some(t => t.id === tagId)
+          ? { ...cat, tags: [...cat.tags, { id: tagId, name: tagName, order: cat.tags.length }] }
+          : cat,
+      ),
+    }))
+  },
+
+  syncAutoTags: (repos) => {
+    get().ensureAutoCategory()
+    const topTopics = getTopTopics(repos)
+    const tagIds = new Set<string>()
+    for (const topic of topTopics) {
+      const tid = tagIdFromTopic(topic)
+      get().ensureAutoTag(tid, topic)
+      tagIds.add(tid)
+    }
+    return tagIds
   },
 }))

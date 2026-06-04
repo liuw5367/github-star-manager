@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
+import { AUTO_CAT_ID } from '../../lib/autoClassify'
 import { ChevronIcon, LogoutIcon, TagManageIcon, TrashIcon } from '../shared/Icons'
 import { ThemeToggle } from '../shared/ThemeToggle'
 
@@ -13,12 +14,16 @@ export function CategoryNav() {
   const collapsedCats = useUiStore(s => s.collapsedCats)
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
+  const classifyAll = useRepoStore(s => s.classifyAll)
 
   const setActiveFilter = useUiStore(s => s.setActiveFilter)
   const toggleCat = useUiStore(s => s.toggleCat)
   const setShowTagManager = useUiStore(s => s.setShowTagManager)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
+  const setToast = useUiStore(s => s.setToast)
+
+  const [classifying, setClassifying] = useState(false)
 
   const totalRepos = repos.length
   const untaggedCount = repos.filter(r => !r.tags || r.tags.length === 0).length
@@ -39,6 +44,30 @@ export function CategoryNav() {
     setActiveFilter(filter)
     setSelectedRepo(null)
     setMobileSidebarOpen(false)
+  }
+
+  const handleClassify = async () => {
+    setClassifying(true)
+    try {
+      const { classified, tags, hasTopics } = await classifyAll()
+      if (collapsedCats.includes(AUTO_CAT_ID))
+        toggleCat(AUTO_CAT_ID)
+      if (tags === 0 && !hasTopics) {
+        setToast({ message: '未发现 topics 数据，无法自动分类。请确认仓库有 GitHub Topics 标签', type: 'info' })
+      }
+      else if (classified === 0) {
+        setToast({ message: `自动分类已更新（${tags} 个标签）`, type: 'success' })
+      }
+      else {
+        setToast({ message: `已处理 ${classified} 个仓库（共 ${tags} 个分类标签）`, type: 'success' })
+      }
+    }
+    catch (err) {
+      setToast({ message: err instanceof Error ? err.message : '分类失败', type: 'error' })
+    }
+    finally {
+      setClassifying(false)
+    }
   }
 
   return (
@@ -131,6 +160,21 @@ export function CategoryNav() {
             })}
 
             <div className="h-px bg-gh-border-muted my-1" />
+
+            <button
+              onClick={handleClassify}
+              disabled={classifying}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gh-accent hover:bg-gh-accent/10 transition-colors disabled:opacity-50"
+              style={{ borderRadius: 0 }}
+            >
+              <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" className={classifying ? 'animate-spin' : ''}>
+                <path d="M2 8a6 6 0 0 1 10.47-4" />
+                <path d="M14 8a6 6 0 0 1-10.47 4" />
+                <path d="M13.5 1.5V5h-3.5" />
+                <path d="M2.5 14.5V11H6" />
+              </svg>
+              {classifying ? '分类中...' : '自动分类'}
+            </button>
 
             <button
               onClick={() => setShowTagManager(true)}

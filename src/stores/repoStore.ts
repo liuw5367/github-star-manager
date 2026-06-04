@@ -4,14 +4,17 @@ import * as gist from '../api/gist'
 import * as github from '../api/github'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
+import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
 
 interface RepoState {
   repos: Repo[]
   syncing: boolean
   syncProgress: string
   lastSynced: string
+  classifying: boolean
   setRepos: (repos: Repo[]) => void
   syncStarred: () => Promise<void>
+  classifyAll: () => Promise<{ classified: number, tags: number, hasTopics: boolean }>
   toggleTag: (fullName: string, tagId: string) => void
   setNote: (fullName: string, note: string) => void
   addTag: (fullName: string, tagId: string) => void
@@ -37,6 +40,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   syncing: false,
   syncProgress: '',
   lastSynced: '',
+  classifying: false,
 
   setRepos: (repos) => {
     set({ repos })
@@ -89,6 +93,36 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           note: '',
         }
       })
+
+      const tagState = useTagStore.getState()
+      let autoCat = tagState.categories.find(c => c.id === AUTO_CAT_ID)
+      if (!autoCat && reposToAdd.length > 0) {
+        const topTopics = getTopTopics(starredRepos.map(sr => ({ full_name: sr.full_name, topics: sr.topics || [] })) as Repo[])
+        const autoTagIds = new Set<string>()
+        tagState.ensureAutoCategory()
+        for (const topic of topTopics) {
+          const tid = tagIdFromTopic(topic)
+          tagState.ensureAutoTag(tid, topic)
+          autoTagIds.add(tid)
+        }
+        for (const repo of reposToAdd) {
+          for (const topic of repo.topics || []) {
+            const tid = tagIdFromTopic(topic)
+            if (autoTagIds.has(tid) && !repo.tags.includes(tid))
+              repo.tags.push(tid)
+          }
+        }
+      }
+      else if (autoCat) {
+        const autoTagIds = new Set(autoCat.tags.map(t => t.id))
+        for (const repo of reposToAdd) {
+          for (const topic of repo.topics || []) {
+            const tid = tagIdFromTopic(topic)
+            if (autoTagIds.has(tid) && !repo.tags.includes(tid))
+              repo.tags.push(tid)
+          }
+        }
+      }
 
       const existingMap = new Map(existing.map(r => [r.full_name, r]))
       const updatedRepos: Repo[] = starredRepos.map((sr) => {
@@ -153,6 +187,65 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     }
     catch (err) {
       set({ syncing: false, syncProgress: '' })
+      throw err
+    }
+  },
+
+  classifyAll: async () => {
+    const { pat, gistId } = useAuthStore.getState()
+    if (!pat || !gistId)
+      throw new Error('未设置 PAT 或 Gist')
+
+    const repos = get().repos
+    const tagStore = useTagStore.getState()
+
+    set({ classifying: true })
+
+    try {
+      const autoTagIds = tagStore.syncAutoTags(repos)
+      let classifiedCount = 0
+      let hasTopics = false
+      const updatedRepos = repos.map((repo) => {
+        if ((repo.topics || []).length > 0)
+          hasTopics = true
+        const matched: string[] = []
+        for (const topic of repo.topics || []) {
+          const tid = tagIdFromTopic(topic)
+          if (autoTagIds.has(tid) && !repo.tags.includes(tid)) {
+            matched.push(tid)
+          }
+        }
+        if (matched.length > 0) {
+          classifiedCount++
+          return { ...repo, tags: [...repo.tags, ...matched] }
+        }
+        return repo
+      })
+
+      const autoCat = useTagStore.getState().categories.find(c => c.id === AUTO_CAT_ID)
+      const tagCount = autoCat?.tags.length || 0
+
+      const userTagMap: Record<string, string[]> = {}
+      updatedRepos.forEach((r) => {
+        const userTags = r.tags.filter(t => !t.startsWith('tag_lang_'))
+        if (userTags.length > 0)
+          userTagMap[r.full_name] = userTags
+      })
+
+      const allCategories = useTagStore.getState().categories
+      const saveCategories = allCategories.filter(c => c.id !== 'cat_language')
+
+      await gist.updateGistFiles(gistId, pat, {
+        'categories.json': JSON.stringify({ categories: saveCategories }),
+        'tags.json': JSON.stringify(userTagMap),
+      })
+
+      set({ repos: updatedRepos, classifying: false })
+      saveCache(updatedRepos)
+      return { classified: classifiedCount, tags: tagCount, hasTopics }
+    }
+    catch (err) {
+      set({ classifying: false })
       throw err
     }
   },
