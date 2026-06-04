@@ -20,6 +20,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --color-gh-fg: #f0f6fc;
   --color-gh-fg-muted: #8b949e;
   --color-gh-border: #30363d;

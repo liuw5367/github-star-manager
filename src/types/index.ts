@@ -22,6 +22,7 @@ export interface Repo {
   full_name: string
   description: string | null
   language: string | null
+  topics: string[]
   stargazers_count: number
   updated_at: string
   starred_at: string

@@ -1,6 +1,6 @@
 import type { Repo } from '../../types'
 import { useRef, useState } from 'react'
-import { formatStars, getLanguageColor } from '../../lib/utils'
+import { formatStars, getLanguageColor, formatISODate } from '../../lib/utils'
 import { useTagStore } from '../../stores/tagStore'
 import { EditIcon, NoteIcon, StarIcon } from '../shared/Icons'
 import { TagPill } from '../shared/TagPill'
@@ -85,6 +85,16 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         </p>
       )}
 
+      {repo.topics && repo.topics.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap mb-1.5">
+          {repo.topics.map(topic => (
+            <span key={topic} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full bg-gh-canvas text-gh-accent border border-gh-border leading-none">
+              {topic}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-3 text-xs text-gh-fg-muted mb-1.5 flex-wrap">
         {repo.language && (
           <span className="flex items-center gap-1">
@@ -96,15 +106,15 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
           <StarIcon size={12} />
           {formatStars(repo.stargazers_count)}
         </span>
+        <span className="flex-1" />
         <span>
           更新:
-          {repo.updated_at}
+          {formatISODate(repo.updated_at)}
         </span>
-      </div>
-
-      <div className="text-xs text-gh-fg-muted/60 mb-1.5">
-        Starred:
-        {repo.starred_at}
+        <span>
+          Starred:
+          {formatISODate(repo.starred_at)}
+        </span>
       </div>
 
       <div className="flex items-center gap-1 flex-wrap relative" ref={tagAreaRef}>

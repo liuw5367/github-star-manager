@@ -1,4 +1,4 @@
-import type { Category } from '../types'
+import type { Category, Repo } from '../types'
 import { create } from 'zustand'
 
 interface TagState {
@@ -11,6 +11,18 @@ interface TagState {
   deleteTag: (catId: string, tagId: string) => void
   renameTag: (catId: string, tagId: string, name: string) => void
   ensureLanguageTag: (language: string) => string
+  ensureAutoCategories: (repos: Repo[]) => void
+}
+
+const AUTO_TAG_NAMES_KEY = 'gsm_auto_tag_names'
+
+function saveAutoTagName(tagId: string, name: string) {
+  try {
+    const map = JSON.parse(localStorage.getItem(AUTO_TAG_NAMES_KEY) || '{}')
+    map[tagId] = name
+    localStorage.setItem(AUTO_TAG_NAMES_KEY, JSON.stringify(map))
+  }
+  catch {}
 }
 
 function langTagId(language: string): string {
@@ -95,6 +107,7 @@ export const useTagStore = create<TagState>((set, get) => ({
     if (exists)
       return tagId
 
+    saveAutoTagName(tagId, language)
     const tagCount = langCat.tags.length
     set(state => ({
       categories: state.categories.map(cat =>
@@ -104,5 +117,22 @@ export const useTagStore = create<TagState>((set, get) => ({
       ),
     }))
     return tagId
+  },
+
+  ensureAutoCategories: (repos) => {
+    const autoTagNames: Record<string, string> = JSON.parse(
+      localStorage.getItem(AUTO_TAG_NAMES_KEY) || '{}',
+    )
+    const seen = new Set<string>()
+    for (const repo of repos) {
+      for (const tagId of repo.tags) {
+        if (tagId.startsWith('tag_lang_') && !seen.has(tagId)) {
+          seen.add(tagId)
+          const name = autoTagNames[tagId]
+          if (name)
+            get().ensureLanguageTag(name)
+        }
+      }
+    }
   },
 }))

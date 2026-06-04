@@ -48,6 +48,7 @@ export default function App() {
                   full_name,
                   description: '',
                   language: null,
+                  topics: [],
                   stargazers_count: 0,
                   updated_at: '',
                   starred_at: '',
@@ -61,6 +62,10 @@ export default function App() {
           }
         }
         login(storedPat, user)
+
+        const repos = useRepoStore.getState().repos
+        if (repos.length > 0)
+          useTagStore.getState().ensureAutoCategories(repos)
       }
       catch {
         localStorage.removeItem('github_star_manager_pat')

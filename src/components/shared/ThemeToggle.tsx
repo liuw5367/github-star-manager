@@ -5,24 +5,28 @@ export function ThemeToggle() {
   const setTheme = useUiStore(s => s.setTheme)
 
   const options: { value: 'system' | 'light' | 'dark', label: string }[] = [
-    { value: 'system', label: '🌓 跟随系统' },
-    { value: 'light', label: '☀️ 浅色' },
-    { value: 'dark', label: '🌙 深色' },
+    { value: 'system', label: '🌓' },
+    { value: 'light', label: '☀️' },
+    { value: 'dark', label: '🌙' },
   ]
 
   return (
-    <div className="px-3 py-1.5">
-      <div className="flex flex-col gap-1">
-        {options.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => setTheme(opt.value)}
-            className={`w-full flex items-center gap-2 px-2 py-1 text-xs rounded transition-colors text-left ${theme === opt.value ? 'bg-gh-accent/10 text-gh-accent font-medium' : 'text-gh-fg-muted hover:text-gh-fg hover:bg-gh-canvas'}`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex items-center">
+      {options.map((opt, i) => (
+        <button
+          key={opt.value}
+          onClick={() => setTheme(opt.value)}
+          className={`flex items-center justify-center px-2 py-1 text-xs transition-colors ${
+            i === 0 ? 'rounded-l-md' : i === options.length - 1 ? 'rounded-r-md' : ''
+          } ${
+            theme === opt.value
+              ? 'bg-gh-accent/10 text-gh-accent font-medium'
+              : 'text-gh-fg-muted hover:text-gh-fg hover:bg-gh-canvas'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   )
 }

@@ -81,6 +81,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           full_name: sr.full_name,
           description: sr.description,
           language: sr.language,
+          topics: sr.topics || [],
           stargazers_count: sr.stargazers_count,
           updated_at: sr.updated_at,
           starred_at: sr.starred_at,
@@ -97,6 +98,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
             ...old,
             description: sr.description,
             language: sr.language,
+            topics: sr.topics || [],
             stargazers_count: sr.stargazers_count,
             updated_at: sr.updated_at,
           }
@@ -106,6 +108,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           full_name: sr.full_name,
           description: sr.description,
           language: sr.language,
+          topics: sr.topics || [],
           stargazers_count: sr.stargazers_count,
           updated_at: sr.updated_at,
           starred_at: sr.starred_at,
@@ -122,10 +125,11 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
       set({ syncProgress: '正在保存到 Gist...' })
 
-      const tagMap: Record<string, string[]> = {}
+      const userTagMap: Record<string, string[]> = {}
       updatedRepos.forEach((r) => {
-        if (r.tags.length > 0)
-          tagMap[r.full_name] = r.tags
+        const userTags = r.tags.filter(t => !t.startsWith('tag_lang_'))
+        if (userTags.length > 0)
+          userTagMap[r.full_name] = userTags
       })
       const noteMap: Record<string, string> = {}
       updatedRepos.forEach((r) => {
@@ -134,11 +138,12 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       })
 
       const currentCategories = useTagStore.getState().categories
+      const userCategories = currentCategories.filter(c => c.id !== 'cat_language')
 
       await gist.updateGistFiles(gistId, pat, {
         'meta.json': JSON.stringify({ version: 1, last_synced: now, total_starred: starredRepos.length }),
-        'categories.json': JSON.stringify({ categories: currentCategories }),
-        'tags.json': JSON.stringify(tagMap),
+        'categories.json': JSON.stringify({ categories: userCategories }),
+        'tags.json': JSON.stringify(userTagMap),
         'notes.json': JSON.stringify(noteMap),
         'trash.json': JSON.stringify(trash),
       })
