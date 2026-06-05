@@ -10,6 +10,7 @@ interface UiState {
   theme: 'system' | 'light' | 'dark'
   isMobile: boolean
   mobileSidebarOpen: boolean
+  sidebarOpen: boolean
   showTagManager: boolean
   toast: { message: string, type: 'success' | 'error' | 'info' } | null
   setActiveFilter: (filter: string) => void
@@ -21,6 +22,7 @@ interface UiState {
   setTheme: (theme: 'system' | 'light' | 'dark') => void
   setIsMobile: (isMobile: boolean) => void
   setMobileSidebarOpen: (open: boolean) => void
+  setSidebarOpen: (open: boolean) => void
   setShowTagManager: (show: boolean) => void
   setToast: (toast: UiState['toast']) => void
 }
@@ -35,6 +37,7 @@ export const useUiStore = create<UiState>(set => ({
   theme: (localStorage.getItem('gsm_theme') as UiState['theme']) || 'system',
   isMobile: false,
   mobileSidebarOpen: false,
+  sidebarOpen: true,
   showTagManager: false,
   toast: null,
   setActiveFilter: filter => set({ activeFilter: filter }),
@@ -53,6 +56,7 @@ export const useUiStore = create<UiState>(set => ({
   },
   setIsMobile: isMobile => set({ isMobile }),
   setMobileSidebarOpen: open => set({ mobileSidebarOpen: open }),
+  setSidebarOpen: open => set({ sidebarOpen: open }),
   setShowTagManager: show => set({ showTagManager: show }),
   setToast: toast => set({ toast }),
 }))

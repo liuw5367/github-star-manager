@@ -25,8 +25,10 @@ function saveWidth(key: string, val: number) {
 export default function AppShell() {
   const selectedRepo = useUiStore(s => s.selectedRepo)
   const mobileSidebarOpen = useUiStore(s => s.mobileSidebarOpen)
+  const sidebarOpen = useUiStore(s => s.sidebarOpen)
   const showTagManager = useUiStore(s => s.showTagManager)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
+  const setSidebarOpen = useUiStore(s => s.setSidebarOpen)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
   const theme = useUiStore(s => s.theme)
 
@@ -34,12 +36,13 @@ export default function AppShell() {
   const [repoListWidth, setRepoListWidth] = useState(() => loadWidth('gsm_list_width', 360))
 
   const updateSidebar = useCallback((delta: number) => {
+    setSidebarOpen(true)
     setSidebarWidth((prev) => {
       const next = Math.min(Math.max(prev + delta, 160), 400)
       saveWidth('gsm_sidebar_width', next)
       return next
     })
-  }, [])
+  }, [setSidebarOpen])
 
   const updateRepoList = useCallback((delta: number) => {
     setRepoListWidth((prev) => {
@@ -86,12 +89,15 @@ export default function AppShell() {
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden md:flex flex-shrink-0">
-        <div className="bg-gh-canvas/30 overflow-hidden" style={{ width: sidebarWidth }}>
+      <div
+        className="hidden md:flex flex-shrink-0 transition-[width] duration-200 overflow-hidden"
+        style={{ width: sidebarOpen ? sidebarWidth : 0 }}
+      >
+        <div className="bg-gh-canvas/30 overflow-hidden flex-shrink-0" style={{ width: sidebarWidth }}>
           <CategoryNav />
         </div>
-        <Splitter onResize={updateSidebar} />
       </div>
+      {sidebarOpen && <Splitter onResize={updateSidebar} />}
 
       {/* Center: Repo List */}
       <div

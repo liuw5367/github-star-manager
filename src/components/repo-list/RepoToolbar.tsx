@@ -5,7 +5,6 @@ import { HamburgerIcon, SearchIcon, SyncIcon } from '../shared/Icons'
 
 export function RepoToolbar() {
   const repos = useRepoStore(s => s.repos)
-  const filteredCount = repos.length
   const syncing = useRepoStore(s => s.syncing)
   const syncProgress = useRepoStore(s => s.syncProgress)
   const syncStarred = useRepoStore(s => s.syncStarred)
@@ -18,6 +17,8 @@ export function RepoToolbar() {
   const activeFilter = useUiStore(s => s.activeFilter)
   const setActiveFilter = useUiStore(s => s.setActiveFilter)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
+  const sidebarOpen = useUiStore(s => s.sidebarOpen)
+  const setSidebarOpen = useUiStore(s => s.setSidebarOpen)
   const setToast = useUiStore(s => s.setToast)
 
   const langOptions = useMemo(() => {
@@ -54,15 +55,23 @@ export function RepoToolbar() {
       <div className="flex items-center justify-between px-3 py-2 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0 min-h-12 md:min-h-10">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="md:hidden p-2 -ml-1 rounded-md hover:bg-gh-canvas transition-colors"
-            aria-label="打开侧边栏"
+            onClick={() => {
+              if (window.innerWidth < 768) {
+                setMobileSidebarOpen(true)
+              }
+              else {
+                setSidebarOpen(!sidebarOpen)
+              }
+            }}
+            className="p-2 -ml-1 rounded-md hover:bg-gh-canvas transition-colors md:p-1.5 text-gh-fg-muted hover:text-gh-fg"
+            aria-label="切换侧边栏"
+            title={sidebarOpen ? '隐藏侧边栏' : '显示侧边栏'}
             style={{ minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <HamburgerIcon />
           </button>
           <button
-            className="hidden md:inline-flex gh-btn gh-btn-default gh-btn-sm"
+            className="gh-btn gh-btn-default gh-btn-sm"
             title="同步 Star 数据"
             onClick={handleSync}
             disabled={syncing}
@@ -70,11 +79,11 @@ export function RepoToolbar() {
             <SyncIcon spinning={syncing} />
             <span className="hidden sm:inline">{syncing ? syncProgress || '同步中...' : '同步'}</span>
           </button>
-          <span className="text-xs text-gh-fg-muted">
+          {/* <span className="text-xs text-gh-fg-muted">
             {filteredCount}
             {' '}
             个仓库
-          </span>
+          </span> */}
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -88,12 +97,17 @@ export function RepoToolbar() {
             <option value="">全部语言</option>
             {langOptions.map(o => (
               <option key={o.name} value={o.name}>
-                {o.name} ({o.count})
+                {o.name}
+                {' '}
+                (
+                {o.count}
+                )
               </option>
             ))}
           </select>
           <select
             className="gh-select text-xs"
+            style={{ backgroundImage: 'none', paddingRight: 12 }}
             value={`${sortBy}:${sortDir}`}
             onChange={(e) => {
               const [field, dir] = e.target.value.split(':')
@@ -101,15 +115,15 @@ export function RepoToolbar() {
               setSortDir(dir as 'asc' | 'desc')
             }}
           >
-          <option value="starred_at:desc">Star 时间 ↓</option>
-          <option value="starred_at:asc">Star 时间 ↑</option>
-          <option value="stargazers_count:desc">Star 数 ↓</option>
-          <option value="stargazers_count:asc">Star 数 ↑</option>
-          <option value="full_name:asc">名称 A→Z</option>
-          <option value="full_name:desc">名称 Z→A</option>
-          <option value="updated_at:desc">更新时间 ↓</option>
-          <option value="updated_at:asc">更新时间 ↑</option>
-        </select>
+            <option value="starred_at:desc">Star 时间 ↓</option>
+            <option value="starred_at:asc">Star 时间 ↑</option>
+            <option value="stargazers_count:desc">Star 数 ↓</option>
+            <option value="stargazers_count:asc">Star 数 ↑</option>
+            <option value="full_name:asc">名称 A→Z</option>
+            <option value="full_name:desc">名称 Z→A</option>
+            <option value="updated_at:desc">更新时间 ↓</option>
+            <option value="updated_at:asc">更新时间 ↑</option>
+          </select>
         </div>
       </div>
 
