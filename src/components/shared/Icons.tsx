@@ -144,6 +144,14 @@ export function UnstarIcon(props: IconProps) {
   )
 }
 
+export function SpinnerIcon(props: IconProps) {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="none" className="animate-spin" {...props}>
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function LogoutIcon(props: IconProps) {
   return (
     <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" {...props}>
