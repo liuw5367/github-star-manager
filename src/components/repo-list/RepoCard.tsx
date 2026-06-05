@@ -1,6 +1,7 @@
 import type { Repo } from '../../types'
 import { useRef, useState } from 'react'
-import { formatStars, getLanguageColor, formatISODate } from '../../lib/utils'
+import { AUTO_CAT_ID } from '../../lib/autoClassify'
+import { formatISODate, formatStars, getLanguageColor } from '../../lib/utils'
 import { useTagStore } from '../../stores/tagStore'
 import { EditIcon, NoteIcon, StarIcon } from '../shared/Icons'
 import { TagPill } from '../shared/TagPill'
@@ -17,15 +18,18 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
   const [editingNote, setEditingNote] = useState(false)
   const [noteText, setNoteText] = useState(repo.note || '')
   const [showTagPicker, setShowTagPicker] = useState(false)
+  const editTagBtnRef = useRef<HTMLButtonElement>(null)
   const tagAreaRef = useRef<HTMLDivElement>(null)
 
-  const tagNames = (repo.tags || []).map((tagId) => {
+  const tagNames = (repo.tags || []).flatMap((tagId) => {
     for (const cat of categories) {
+      if (cat.id === AUTO_CAT_ID)
+        continue
       const found = cat.tags.find(t => t.id === tagId)
       if (found)
-        return { id: tagId, name: found.name }
+        return [{ id: tagId, name: found.name }]
     }
-    return { id: tagId, name: tagId }
+    return []
   })
 
   return (
@@ -34,7 +38,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       className={`group border-b border-gh-border-muted cursor-pointer transition-colors ${isSelected ? 'bg-gh-accent/5 border-l-2 !border-l-gh-accent' : 'hover:bg-gh-canvas/60 border-l-2 border-l-transparent'}`}
       style={{ padding: '12px 12px 10px' }}
     >
-      <div className="flex items-start justify-between gap-2 mb-1">
+      <div className="flex items-center justify-between gap-2 mb-1">
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <img
             src={`https://github.com/${repo.full_name.split('/')[0]}.png?size=20`}
@@ -55,6 +59,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
             <StarIcon filled size={14} />
           </button>
           <button
+            ref={editTagBtnRef}
             onClick={(e) => {
               e.stopPropagation()
               setShowTagPicker(!showTagPicker)
@@ -80,13 +85,17 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       </div>
 
       {repo.description && (
-        <p className="text-xs text-gh-fg-muted leading-relaxed mb-1.5" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        <p
+          className="text-xs text-gh-fg-muted leading-relaxed mb-2"
+          title={repo.description}
+          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        >
           {repo.description}
         </p>
       )}
 
       {repo.topics && repo.topics.length > 0 && (
-        <div className="flex items-center gap-1 flex-wrap mb-1.5">
+        <div className="flex items-center gap-1 flex-wrap mb-2">
           {repo.topics.map(topic => (
             <span key={topic} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full bg-gh-canvas text-gh-accent border border-gh-border leading-none">
               {topic}
@@ -95,7 +104,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-3 text-xs text-gh-fg-muted mb-1.5 flex-wrap">
+      <div className="flex items-center gap-3 text-xs text-gh-fg-muted mb-2 flex-wrap">
         {repo.language && (
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: getLanguageColor(repo.language) }} />
@@ -117,27 +126,20 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1 flex-wrap relative" ref={tagAreaRef}>
-        {tagNames.map(t => (
-          <TagPill key={t.id} name={t.name} />
-        ))}
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setShowTagPicker(!showTagPicker)
-          }}
-          className="inline-flex items-center gap-0.5 text-xs text-gh-accent hover:underline"
-        >
-          + 添加标签
-        </button>
-        {showTagPicker && (
-          <RepoTagPicker
-            repo={repo}
-            anchorRef={tagAreaRef}
-            onClose={() => setShowTagPicker(false)}
-          />
-        )}
-      </div>
+      {tagNames.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap relative" ref={tagAreaRef}>
+          {tagNames.map(t => (
+            <TagPill key={t.id} name={t.name} />
+          ))}
+        </div>
+      )}
+      {showTagPicker && (
+        <RepoTagPicker
+          repo={repo}
+          anchorRef={editTagBtnRef}
+          onClose={() => setShowTagPicker(false)}
+        />
+      )}
 
       {editingNote && (
         <div className="mt-2" onClick={e => e.stopPropagation()}>
