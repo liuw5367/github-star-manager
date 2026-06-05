@@ -87,7 +87,7 @@ export default function AppShell() {
 
       {/* Desktop sidebar */}
       <div className="hidden md:flex flex-shrink-0">
-        <div className="border-r border-gh-border bg-gh-canvas/30 overflow-hidden" style={{ width: sidebarWidth }}>
+        <div className="bg-gh-canvas/30 overflow-hidden" style={{ width: sidebarWidth }}>
           <CategoryNav />
         </div>
         <Splitter onResize={updateSidebar} />
@@ -95,7 +95,7 @@ export default function AppShell() {
 
       {/* Center: Repo List */}
       <div
-        className={`flex flex-col border-r border-gh-border overflow-hidden max-md:!w-full md:min-w-[320px] ${selectedRepo ? '' : 'md:flex-1'}`}
+        className={`flex flex-col overflow-hidden max-md:!w-full md:min-w-[320px] ${selectedRepo ? '' : 'md:flex-1'}`}
         style={{
           width: selectedRepo ? repoListWidth : undefined,
         }}
