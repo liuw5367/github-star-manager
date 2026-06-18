@@ -7,8 +7,6 @@ import { CloseIcon, EditIcon, PlusIcon, TrashIcon } from '../shared/Icons'
 export function TagManagerModal() {
   const categories = useTagStore(s => s.categories)
   const setCategories = useTagStore(s => s.setCategories)
-  const addTag = useTagStore(s => s.addTag)
-  const renameTag = useTagStore(s => s.renameTag)
   const setShowTagManager = useUiStore(s => s.setShowTagManager)
   const setToast = useUiStore(s => s.setToast)
 
@@ -68,18 +66,6 @@ export function TagManagerModal() {
 
   const handleSave = () => {
     setCategories(localCats)
-    localCats.forEach((cat) => {
-      cat.tags.forEach((tag) => {
-        const origCat = categories.find(c => c.id === cat.id)
-        const origTag = origCat?.tags.find(t => t.id === tag.id)
-        if (!origTag) {
-          addTag(cat.id, tag.name)
-        }
-        else if (origTag.name !== tag.name) {
-          renameTag(cat.id, tag.id, tag.name)
-        }
-      })
-    })
     setShowTagManager(false)
     setToast({ message: '标签已保存', type: 'success' })
   }

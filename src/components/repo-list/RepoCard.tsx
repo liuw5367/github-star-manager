@@ -2,6 +2,7 @@ import type { Repo } from '../../types'
 import { useRef, useState } from 'react'
 import { AUTO_CAT_ID } from '../../lib/autoClassify'
 import { formatISODate, formatStars, getLanguageColor } from '../../lib/utils'
+import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { EditIcon, NoteIcon, StarIcon } from '../shared/Icons'
 import { TagPill } from '../shared/TagPill'
@@ -15,6 +16,7 @@ interface RepoCardProps {
 
 export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
   const categories = useTagStore(s => s.categories)
+  const setNote = useRepoStore(s => s.setNote)
   const [editingNote, setEditingNote] = useState(false)
   const [noteText, setNoteText] = useState(repo.note || '')
   const [showTagPicker, setShowTagPicker] = useState(false)
@@ -73,6 +75,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
           <button
             onClick={(e) => {
               e.stopPropagation()
+              setNoteText(repo.note || '')
               setEditingNote(!editingNote)
             }}
             className="p-1.5 rounded hover:bg-gh-canvas-subtle transition-colors text-gh-fg-muted hover:text-gh-fg"
@@ -150,7 +153,10 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
             value={noteText}
             onChange={e => setNoteText(e.target.value)}
             autoFocus
-            onBlur={() => setEditingNote(false)}
+            onBlur={() => {
+              setNote(repo.full_name, noteText.trim())
+              setEditingNote(false)
+            }}
           />
         </div>
       )}

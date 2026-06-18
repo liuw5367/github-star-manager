@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useMemo, useRef } from 'react'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -87,43 +87,45 @@ export function RepoList() {
 
   return (
     <div ref={scrollRef} className="flex-1 overflow-y-auto">
-      {filteredRepos.length > 0 ? (
-        <div
-          style={{
-            height: `${virtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          {virtualizer.getVirtualItems().map(virtualItem => (
+      {filteredRepos.length > 0
+        ? (
             <div
-              key={virtualItem.key}
-              data-index={virtualItem.index}
-              ref={virtualizer.measureElement}
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
+                height: `${virtualizer.getTotalSize()}px`,
                 width: '100%',
-                transform: `translateY(${virtualItem.start}px)`,
+                position: 'relative',
               }}
             >
-              <RepoCard
-                repo={filteredRepos[virtualItem.index]}
-                isSelected={selectedRepo === filteredRepos[virtualItem.index].full_name}
-                onClick={() => setSelectedRepo(filteredRepos[virtualItem.index].full_name)}
-              />
+              {virtualizer.getVirtualItems().map(virtualItem => (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <RepoCard
+                    repo={filteredRepos[virtualItem.index]}
+                    isSelected={selectedRepo === filteredRepos[virtualItem.index].full_name}
+                    onClick={() => setSelectedRepo(filteredRepos[virtualItem.index].full_name)}
+                  />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16 text-gh-fg-muted">
-          <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor" className="mb-3 text-gh-fg-muted">
-            <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
-          </svg>
-          <p className="text-sm">没有匹配的仓库</p>
-        </div>
-      )}
+          )
+        : (
+            <div className="flex flex-col items-center justify-center py-16 text-gh-fg-muted">
+              <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor" className="mb-3 text-gh-fg-muted">
+                <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+              </svg>
+              <p className="text-sm">没有匹配的仓库</p>
+            </div>
+          )}
     </div>
   )
 }
