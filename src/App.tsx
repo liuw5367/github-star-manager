@@ -1,42 +1,12 @@
-import type { Repo } from './types'
 import { useEffect } from 'react'
 import { getGistFiles } from './api/gist'
 import { getUser } from './api/github'
 import { AuthPage } from './components/auth/AuthPage'
 import AppShell from './components/layout/AppShell'
+import { mergeRemoteRepoData, parseGistJson } from './lib/repoPersistence'
 import { useAuthStore } from './stores/authStore'
 import { useRepoStore } from './stores/repoStore'
 import { useTagStore } from './stores/tagStore'
-
-function mergeRemoteRepoData(
-  cachedRepos: Repo[],
-  tagMap: Record<string, string[]>,
-  noteMap: Record<string, string>,
-): Repo[] {
-  const cachedMap = new Map(cachedRepos.map(repo => [repo.full_name, repo]))
-  const repoNames = new Set([
-    ...cachedRepos.map(repo => repo.full_name),
-    ...Object.keys(tagMap),
-    ...Object.keys(noteMap),
-  ])
-
-  return [...repoNames].map((fullName) => {
-    const cached = cachedMap.get(fullName)
-    const languageTags = cached?.tags.filter(tagId => tagId.startsWith('tag_lang_')) ?? []
-
-    return {
-      full_name: fullName,
-      description: cached?.description ?? '',
-      language: cached?.language ?? null,
-      topics: cached?.topics ?? [],
-      stargazers_count: cached?.stargazers_count ?? 0,
-      updated_at: cached?.updated_at ?? '',
-      starred_at: cached?.starred_at ?? '',
-      tags: [...languageTags, ...(tagMap[fullName] ?? cached?.tags.filter(tagId => !tagId.startsWith('tag_lang_')) ?? [])],
-      note: noteMap[fullName] ?? cached?.note ?? '',
-    }
-  })
-}
 
 export default function App() {
   const isAuth = useAuthStore(s => s.isAuth)
@@ -44,6 +14,7 @@ export default function App() {
   const login = useAuthStore(s => s.login)
   const setCheckingDone = useAuthStore(s => s.setCheckingDone)
   const setRepos = useRepoStore(s => s.setRepos)
+  const setLastSynced = useRepoStore(s => s.setLastSynced)
   const setCategories = useTagStore(s => s.setCategories)
 
   useEffect(() => {
@@ -62,39 +33,25 @@ export default function App() {
         const user = await getUser(storedPat)
         if (storedGist) {
           const files = await getGistFiles(storedGist, storedPat)
-          if (files['categories.json']) {
-            try {
-              const cats = JSON.parse(files['categories.json'])
-              setCategories(cats.categories ?? [])
-            }
-            catch {}
-          }
+          const meta = parseGistJson(files['meta.json'], { version: 1, last_synced: '', total_starred: 0 })
+          const categories = parseGistJson(files['categories.json'], { categories: [] as [] })
+          const remoteTagMap = parseGistJson(files['tags.json'], {} as Record<string, string[]>)
+          const remoteNoteMap = parseGistJson(files['notes.json'], {} as Record<string, string>)
+          const remoteTrashMap = parseGistJson(files['trash.json'], {})
 
-          let remoteTagMap: Record<string, string[]> = {}
-          let remoteNoteMap: Record<string, string> = {}
-
-          if (files['tags.json']) {
-            try {
-              remoteTagMap = JSON.parse(files['tags.json'])
-            }
-            catch {}
-          }
-
-          if (files['notes.json']) {
-            try {
-              remoteNoteMap = JSON.parse(files['notes.json'])
-            }
-            catch {}
-          }
+          setCategories(categories.categories ?? [])
+          setLastSynced(meta.last_synced ?? '')
 
           const mergedRepos = mergeRemoteRepoData(
-            useRepoStore.getState().repos,
-            remoteTagMap,
-            remoteNoteMap,
+            {
+              cachedRepos: useRepoStore.getState().repos,
+              tagMap: remoteTagMap,
+              noteMap: remoteNoteMap,
+              trashMap: remoteTrashMap,
+            },
           )
 
-          if (mergedRepos.length > 0)
-            setRepos(mergedRepos)
+          setRepos(mergedRepos)
         }
         login(storedPat, user)
 
@@ -108,7 +65,7 @@ export default function App() {
         setCheckingDone()
       }
     })()
-  }, [isAuth, login, setCategories, setCheckingDone, setRepos])
+  }, [isAuth, login, setCategories, setCheckingDone, setLastSynced, setRepos])
 
   if (checking) {
     return (

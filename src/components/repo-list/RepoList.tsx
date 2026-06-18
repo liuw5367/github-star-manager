@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useMemo, useRef } from 'react'
+import { getFilteredRepos, getRepoListEmptyState } from '../../lib/repoList'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -17,63 +18,20 @@ export function RepoList() {
   const sortDir = useUiStore(s => s.sortDir)
   const searchQuery = useUiStore(s => s.searchQuery)
 
-  const filteredRepos = useMemo(() => {
-    let filtered = [...repos]
-
-    if (activeFilter === 'untagged') {
-      filtered = filtered.filter(r => !r.tags || r.tags.length === 0)
-    }
-    else if (activeFilter.startsWith('cat:')) {
-      const catId = activeFilter.slice(4)
-      const cat = categories.find(c => c.id === catId)
-      if (cat) {
-        const tagIds = new Set(cat.tags.map(t => t.id))
-        filtered = filtered.filter(r => r.tags?.some(t => tagIds.has(t)))
-      }
-      else { filtered = [] }
-    }
-    else if (activeFilter.startsWith('tag:')) {
-      const tagId = activeFilter.slice(4)
-      filtered = filtered.filter(r => r.tags?.includes(tagId))
-    }
-    else if (activeFilter === 'trash') {
-      filtered = []
-    }
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      const tagNameMap = new Map<string, string>()
-      for (const cat of categories) {
-        for (const t of cat.tags) {
-          tagNameMap.set(t.id, t.name.toLowerCase())
-        }
-      }
-      filtered = filtered.filter((r) => {
-        if (r.full_name.toLowerCase().includes(q))
-          return true
-        if (r.description?.toLowerCase().includes(q))
-          return true
-        if (r.tags?.some(tid => tagNameMap.get(tid)?.includes(q)))
-          return true
-        return false
-      })
-    }
-
-    filtered.sort((a, b) => {
-      let cmp = 0
-      if (sortBy === 'starred_at')
-        cmp = a.starred_at.localeCompare(b.starred_at)
-      else if (sortBy === 'stargazers_count')
-        cmp = a.stargazers_count - b.stargazers_count
-      else if (sortBy === 'full_name')
-        cmp = a.full_name.localeCompare(b.full_name)
-      else if (sortBy === 'updated_at')
-        cmp = a.updated_at.localeCompare(b.updated_at)
-      return sortDir === 'desc' ? -cmp : cmp
-    })
-
-    return filtered
-  }, [repos, categories, activeFilter, sortBy, sortDir, searchQuery])
+  const filteredRepos = useMemo(() => getFilteredRepos({
+    repos,
+    categories,
+    activeFilter,
+    sortBy,
+    sortDir,
+    searchQuery,
+  }), [repos, categories, activeFilter, sortBy, sortDir, searchQuery])
+  const emptyState = getRepoListEmptyState({
+    repos,
+    filteredRepos,
+    activeFilter,
+    searchQuery,
+  })
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -123,7 +81,16 @@ export function RepoList() {
               <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor" className="mb-3 text-gh-fg-muted">
                 <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
               </svg>
-              <p className="text-sm">没有匹配的仓库</p>
+              <p className="text-sm">
+                {emptyState === 'no-data' && '暂无仓库数据'}
+                {emptyState === 'empty-trash' && '回收站为空'}
+                {emptyState === 'no-results' && '没有匹配的仓库'}
+              </p>
+              <p className="mt-1 text-xs text-gh-fg-muted/70">
+                {emptyState === 'no-data' && '先同步 GitHub Star 列表开始使用'}
+                {emptyState === 'empty-trash' && '取消 Star 的仓库会暂存在这里'}
+                {emptyState === 'no-results' && '试试调整搜索词或筛选条件'}
+              </p>
             </div>
           )}
     </div>

@@ -1,10 +1,13 @@
 import { useMemo } from 'react'
+import { splitReposByTrash } from '../../lib/repoPersistence'
+import { formatISODate } from '../../lib/utils'
 import { useRepoStore } from '../../stores/repoStore'
 import { useUiStore } from '../../stores/uiStore'
 import { HamburgerIcon, SearchIcon, SyncIcon } from '../shared/Icons'
 
 export function RepoToolbar() {
   const repos = useRepoStore(s => s.repos)
+  const lastSynced = useRepoStore(s => s.lastSynced)
   const syncing = useRepoStore(s => s.syncing)
   const syncProgress = useRepoStore(s => s.syncProgress)
   const syncStarred = useRepoStore(s => s.syncStarred)
@@ -20,17 +23,18 @@ export function RepoToolbar() {
   const sidebarOpen = useUiStore(s => s.sidebarOpen)
   const setSidebarOpen = useUiStore(s => s.setSidebarOpen)
   const setToast = useUiStore(s => s.setToast)
+  const { activeRepos } = splitReposByTrash(repos)
 
   const langOptions = useMemo(() => {
     const counts: Record<string, number> = {}
-    repos.forEach((r) => {
+    activeRepos.forEach((r) => {
       if (r.language)
         counts[r.language] = (counts[r.language] || 0) + 1
     })
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-  }, [repos])
+  }, [activeRepos])
 
   function langTagId(language: string): string {
     return `tag_lang_${language.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
@@ -79,11 +83,9 @@ export function RepoToolbar() {
             <SyncIcon spinning={syncing} />
             <span className="hidden sm:inline">{syncing ? syncProgress || '同步中...' : '同步'}</span>
           </button>
-          {/* <span className="text-xs text-gh-fg-muted">
-            {filteredCount}
-            {' '}
-            个仓库
-          </span> */}
+          <span className="hidden lg:inline text-xs text-gh-fg-muted">
+            {lastSynced ? `上次同步 ${formatISODate(lastSynced)}` : '尚未同步'}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <select

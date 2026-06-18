@@ -15,7 +15,8 @@ export function getTopTopics(repos: Repo[], topN = TOP_N): string[] {
   for (const repo of repos) {
     for (const topic of repo.topics || []) {
       const t = topic.trim()
-      if (t) counts[t] = (counts[t] || 0) + 1
+      if (t)
+        counts[t] = (counts[t] || 0) + 1
     }
     for (const word of extractRepoNameWords(repo.full_name || '')) {
       counts[word] = (counts[word] || 0) + 1

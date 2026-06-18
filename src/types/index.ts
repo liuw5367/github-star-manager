@@ -28,6 +28,7 @@ export interface Repo {
   starred_at: string
   tags: string[]
   note: string
+  trashed_at?: string | null
 }
 
 export interface TrashItem {

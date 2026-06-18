@@ -144,6 +144,7 @@ export function ReadmePanel() {
       return
 
     const el = contentRef.current
+    let resetCopyTextTimer: ReturnType<typeof setTimeout> | null = null
 
     const initMermaid = async () => {
       if (!el.querySelector('.mermaid'))
@@ -175,7 +176,9 @@ export function ReadmePanel() {
         const orig = btn.textContent || '复制'
         btn.textContent = '已复制'
         btn.classList.add('copied')
-        setTimeout(() => {
+        if (resetCopyTextTimer)
+          clearTimeout(resetCopyTextTimer)
+        resetCopyTextTimer = setTimeout(() => {
           btn.textContent = orig
           btn.classList.remove('copied')
         }, 2000)
@@ -183,7 +186,11 @@ export function ReadmePanel() {
     }
 
     el.addEventListener('click', copyHandler)
-    return () => el.removeEventListener('click', copyHandler)
+    return () => {
+      el.removeEventListener('click', copyHandler)
+      if (resetCopyTextTimer)
+        clearTimeout(resetCopyTextTimer)
+    }
   }, [readmeHtml, isDark])
 
   if (!repo)
@@ -265,6 +272,8 @@ export function ReadmePanel() {
                   ref={contentRef}
                   className="p-6 readme-content"
                   style={{ maxWidth: 800 }}
+                  // README HTML is rendered from GitHub-hosted markdown content.
+                  // eslint-disable-next-line react/dom-no-dangerously-set-innerhtml
                   dangerouslySetInnerHTML={{ __html: readmeHtml }}
                 />
               )}

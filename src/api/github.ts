@@ -2,6 +2,30 @@ import type { User } from '../types'
 
 const BASE = 'https://api.github.com'
 
+function getLastPage(linkHeader: string): number | null {
+  if (!linkHeader)
+    return null
+
+  const lastEntry = linkHeader
+    .split(',')
+    .map(part => part.trim())
+    .find(part => part.endsWith('rel="last"'))
+
+  if (!lastEntry)
+    return null
+
+  const urlMatch = lastEntry.match(/<([^>]+)>/)
+  if (!urlMatch)
+    return null
+
+  try {
+    return Number(new URL(urlMatch[1]).searchParams.get('page'))
+  }
+  catch {
+    return null
+  }
+}
+
 function headers(pat: string): HeadersInit {
   return {
     Authorization: `Bearer ${pat}`,
@@ -53,8 +77,7 @@ export async function getStarred(
       throw new Error(`拉取 Star 列表失败 (${res.status})`)
 
     const link = res.headers.get('link') || ''
-    const lastMatch = link.match(/[?&]page=(\d+)[^>]*>; rel="last"/)
-    const totalPages = lastMatch ? Number(lastMatch[1]) : page
+    const totalPages = getLastPage(link) ?? page
 
     onProgress?.(page, totalPages)
 

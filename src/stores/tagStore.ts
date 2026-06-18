@@ -143,7 +143,8 @@ export const useTagStore = create<TagState>((set, get) => ({
   ensureAutoCategory: () => {
     const { categories } = get()
     const existing = categories.find(c => c.id === AUTO_CAT_ID)
-    if (existing) return existing
+    if (existing)
+      return existing
     const newCat: Category = { id: AUTO_CAT_ID, name: AUTO_CAT_NAME, order: 0, tags: [] }
     set(s => ({ categories: [newCat, ...s.categories] }))
     return newCat

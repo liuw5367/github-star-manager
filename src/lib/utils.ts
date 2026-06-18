@@ -5,7 +5,8 @@ export function formatStars(count: number): string {
 }
 
 export function formatISODate(iso: string): string {
-  if (!iso) return ''
+  if (!iso)
+    return ''
   const d = new Date(iso)
   const cst = new Date(d.getTime() + 8 * 60 * 60 * 1000)
   const yr = cst.getUTCFullYear()

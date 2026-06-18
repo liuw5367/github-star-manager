@@ -1,5 +1,8 @@
 import type { Category } from '../../types'
 import { useState } from 'react'
+import { persistRepoSnapshot, reconcileReposWithCategories, splitReposByTrash } from '../../lib/repoPersistence'
+import { useAuthStore } from '../../stores/authStore'
+import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
 import { CloseIcon, EditIcon, PlusIcon, TrashIcon } from '../shared/Icons'
@@ -7,8 +10,13 @@ import { CloseIcon, EditIcon, PlusIcon, TrashIcon } from '../shared/Icons'
 export function TagManagerModal() {
   const categories = useTagStore(s => s.categories)
   const setCategories = useTagStore(s => s.setCategories)
+  const repos = useRepoStore(s => s.repos)
+  const setRepos = useRepoStore(s => s.setRepos)
+  const lastSynced = useRepoStore(s => s.lastSynced)
   const setShowTagManager = useUiStore(s => s.setShowTagManager)
   const setToast = useUiStore(s => s.setToast)
+  const pat = useAuthStore(s => s.pat)
+  const gistId = useAuthStore(s => s.gistId)
 
   const [localCats, setLocalCats] = useState<Category[]>(JSON.parse(JSON.stringify(categories)))
   const [newTagName, setNewTagName] = useState('')
@@ -64,10 +72,28 @@ export function TagManagerModal() {
     setLocalCats(prev => prev.filter(c => c.id !== catId))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const nextRepos = reconcileReposWithCategories(repos, localCats)
     setCategories(localCats)
-    setShowTagManager(false)
-    setToast({ message: '标签已保存', type: 'success' })
+    setRepos(nextRepos)
+
+    try {
+      if (pat && gistId) {
+        await persistRepoSnapshot({
+          repos: nextRepos,
+          categories: localCats,
+          lastSynced,
+          totalStarred: splitReposByTrash(nextRepos).activeRepos.length,
+          gistId,
+          pat,
+        })
+      }
+      setShowTagManager(false)
+      setToast({ message: '标签已保存', type: 'success' })
+    }
+    catch (err) {
+      setToast({ message: err instanceof Error ? err.message : '保存标签失败', type: 'error' })
+    }
   }
 
   return (

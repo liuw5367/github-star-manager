@@ -1,0 +1,160 @@
+import type { GistFiles } from '../api/gist.ts'
+import type { Category, Repo, TrashItem } from '../types'
+import * as gist from '../api/gist.ts'
+
+interface RemoteRepoMaps {
+  tagMap: Record<string, string[]>
+  noteMap: Record<string, string>
+  trashMap: Record<string, TrashItem>
+}
+
+interface GistPayloadArgs {
+  repos: Repo[]
+  categories: Category[]
+  lastSynced: string
+  totalStarred: number
+}
+
+function toRepoBase(fullName: string, repo?: Partial<Repo>): Repo {
+  return {
+    full_name: fullName,
+    description: repo?.description ?? '',
+    language: repo?.language ?? null,
+    topics: repo?.topics ?? [],
+    stargazers_count: repo?.stargazers_count ?? 0,
+    updated_at: repo?.updated_at ?? '',
+    starred_at: repo?.starred_at ?? '',
+    tags: repo?.tags ?? [],
+    note: repo?.note ?? '',
+    trashed_at: repo?.trashed_at ?? null,
+  }
+}
+
+function getLanguageTags(tags: string[]): string[] {
+  return tags.filter(tagId => tagId.startsWith('tag_lang_'))
+}
+
+function getUserTags(tags: string[]): string[] {
+  return tags.filter(tagId => !tagId.startsWith('tag_lang_'))
+}
+
+export function parseGistJson<T>(raw: string, fallback: T): T {
+  if (!raw)
+    return fallback
+  try {
+    return JSON.parse(raw) as T
+  }
+  catch {
+    return fallback
+  }
+}
+
+export function splitReposByTrash(repos: Repo[]): { activeRepos: Repo[], trashRepos: Repo[] } {
+  return {
+    activeRepos: repos.filter(repo => !repo.trashed_at),
+    trashRepos: repos.filter(repo => Boolean(repo.trashed_at)),
+  }
+}
+
+export function mergeRemoteRepoData(
+  { cachedRepos, tagMap, noteMap, trashMap }: { cachedRepos: Repo[] } & RemoteRepoMaps,
+): Repo[] {
+  const cachedMap = new Map(cachedRepos.map(repo => [repo.full_name, repo]))
+  const names = new Set([
+    ...cachedRepos.map(repo => repo.full_name),
+    ...Object.keys(tagMap),
+    ...Object.keys(noteMap),
+    ...Object.keys(trashMap),
+  ])
+
+  const merged: Repo[] = []
+
+  for (const fullName of names) {
+    const cached = cachedMap.get(fullName)
+    const trashed = trashMap[fullName]
+
+    if (trashed) {
+      merged.push({
+        ...toRepoBase(fullName, cached),
+        tags: trashed.tags,
+        note: trashed.note,
+        trashed_at: trashed.trashed_at,
+      })
+      continue
+    }
+
+    const cachedRepo = toRepoBase(fullName, cached)
+    merged.push({
+      ...cachedRepo,
+      tags: [...getLanguageTags(cachedRepo.tags), ...(tagMap[fullName] ?? getUserTags(cachedRepo.tags))],
+      note: noteMap[fullName] ?? cachedRepo.note,
+      trashed_at: null,
+    })
+  }
+
+  return merged
+}
+
+export function reconcileReposWithCategories(repos: Repo[], categories: Category[]): Repo[] {
+  const validUserTags = new Set(
+    categories
+      .filter(category => category.id !== 'cat_language')
+      .flatMap(category => category.tags.map(tag => tag.id)),
+  )
+
+  return repos.map((repo) => {
+    const keptUserTags = getUserTags(repo.tags).filter(tagId => validUserTags.has(tagId))
+    return {
+      ...repo,
+      tags: [...getLanguageTags(repo.tags), ...keptUserTags],
+    }
+  })
+}
+
+export function buildGistPayload({ repos, categories, lastSynced, totalStarred }: GistPayloadArgs): GistFiles {
+  const { activeRepos, trashRepos } = splitReposByTrash(repos)
+  const userCategories = categories.filter(category => category.id !== 'cat_language')
+
+  const tagMap: Record<string, string[]> = {}
+  const noteMap: Record<string, string> = {}
+  const trashMap: Record<string, TrashItem> = {}
+
+  for (const repo of activeRepos) {
+    const userTags = getUserTags(repo.tags)
+    if (userTags.length > 0)
+      tagMap[repo.full_name] = userTags
+    if (repo.note)
+      noteMap[repo.full_name] = repo.note
+  }
+
+  for (const repo of trashRepos) {
+    trashMap[repo.full_name] = {
+      tags: repo.tags,
+      note: repo.note,
+      trashed_at: repo.trashed_at || '',
+    }
+  }
+
+  return {
+    'meta.json': JSON.stringify({ version: 1, last_synced: lastSynced, total_starred: totalStarred }),
+    'categories.json': JSON.stringify({ categories: userCategories }),
+    'tags.json': JSON.stringify(tagMap),
+    'notes.json': JSON.stringify(noteMap),
+    'trash.json': JSON.stringify(trashMap),
+  }
+}
+
+export async function persistRepoSnapshot({
+  repos,
+  categories,
+  lastSynced,
+  gistId,
+  pat,
+  totalStarred,
+}: GistPayloadArgs & { gistId: string, pat: string }): Promise<void> {
+  await gist.updateGistFiles(
+    gistId,
+    pat,
+    buildGistPayload({ repos, categories, lastSynced, totalStarred }),
+  )
+}

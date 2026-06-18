@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getFilteredRepos, shouldClearSelectedRepo } from '../../lib/repoList'
+import { useRepoStore } from '../../stores/repoStore'
+import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
 import { TagManagerModal } from '../modals/TagManagerModal'
 import { ReadmePanel } from '../readme/ReadmePanel'
@@ -23,7 +26,13 @@ function saveWidth(key: string, val: number) {
 }
 
 export default function AppShell() {
+  const repos = useRepoStore(s => s.repos)
+  const categories = useTagStore(s => s.categories)
   const selectedRepo = useUiStore(s => s.selectedRepo)
+  const activeFilter = useUiStore(s => s.activeFilter)
+  const sortBy = useUiStore(s => s.sortBy)
+  const sortDir = useUiStore(s => s.sortDir)
+  const searchQuery = useUiStore(s => s.searchQuery)
   const mobileSidebarOpen = useUiStore(s => s.mobileSidebarOpen)
   const sidebarOpen = useUiStore(s => s.sidebarOpen)
   const showTagManager = useUiStore(s => s.showTagManager)
@@ -51,6 +60,20 @@ export default function AppShell() {
       return next
     })
   }, [])
+
+  useEffect(() => {
+    const filteredRepos = getFilteredRepos({
+      repos,
+      categories,
+      activeFilter,
+      sortBy,
+      sortDir,
+      searchQuery,
+    })
+
+    if (shouldClearSelectedRepo(selectedRepo, filteredRepos))
+      setSelectedRepo(null)
+  }, [repos, categories, activeFilter, sortBy, sortDir, searchQuery, selectedRepo, setSelectedRepo])
 
   // Apply theme
   useEffect(() => {

@@ -1,10 +1,10 @@
 import type { Repo } from '../types'
 import { create } from 'zustand'
-import * as gist from '../api/gist'
 import * as github from '../api/github'
+import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
+import { persistRepoSnapshot, splitReposByTrash } from '../lib/repoPersistence'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
-import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
 
 interface RepoState {
   repos: Repo[]
@@ -13,6 +13,7 @@ interface RepoState {
   lastSynced: string
   classifying: boolean
   setRepos: (repos: Repo[]) => void
+  setLastSynced: (lastSynced: string) => void
   syncStarred: () => Promise<void>
   classifyAll: () => Promise<{ classified: number, tags: number, hasTopics: boolean }>
   toggleTag: (fullName: string, tagId: string) => void
@@ -35,6 +36,57 @@ function loadCache(): Repo[] {
   }
 }
 
+async function persistMetadata(repos: Repo[], lastSynced: string) {
+  const { pat, gistId } = useAuthStore.getState()
+  if (!pat || !gistId)
+    return
+
+  const categories = useTagStore.getState().categories
+  const { activeRepos } = splitReposByTrash(repos)
+
+  await persistRepoSnapshot({
+    repos,
+    categories,
+    lastSynced,
+    totalStarred: activeRepos.length,
+    gistId,
+    pat,
+  })
+}
+
+function buildRepoFromStarred(
+  starredRepo: github.StarredRepo,
+  oldRepo: Repo | undefined,
+  ensureLanguageTag: (language: string) => string,
+  autoTagIds: Set<string>,
+): Repo {
+  const tags = oldRepo?.tags.filter(tag => !tag.startsWith('tag_lang_')) ?? []
+
+  if (starredRepo.language) {
+    tags.unshift(ensureLanguageTag(starredRepo.language))
+  }
+
+  for (const topic of starredRepo.topics || []) {
+    const tagId = tagIdFromTopic(topic)
+    if (autoTagIds.has(tagId) && !tags.includes(tagId))
+      tags.push(tagId)
+  }
+
+  return {
+    ...oldRepo,
+    full_name: starredRepo.full_name,
+    description: starredRepo.description,
+    language: starredRepo.language,
+    topics: starredRepo.topics || [],
+    stargazers_count: starredRepo.stargazers_count,
+    updated_at: starredRepo.updated_at,
+    starred_at: starredRepo.starred_at,
+    tags,
+    note: oldRepo?.note ?? '',
+    trashed_at: null,
+  }
+}
+
 export const useRepoStore = create<RepoState>((set, get) => ({
   repos: loadCache(),
   syncing: false,
@@ -46,6 +98,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     set({ repos })
     saveCache(repos)
   },
+  setLastSynced: lastSynced => set({ lastSynced }),
 
   syncStarred: async () => {
     const { pat, gistId } = useAuthStore.getState()
@@ -64,126 +117,61 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       set({ syncProgress: '正在对比本地数据...' })
 
       const existing = get().repos
-      const existingNames = new Set(existing.map(r => r.full_name))
-      const starredNames = new Set(starredRepos.map(r => r.full_name))
-
-      const newRepos = starredRepos.filter(r => !existingNames.has(r.full_name))
-      const removedRepos = existing.filter(r => !starredNames.has(r.full_name))
+      const { activeRepos: existingActiveRepos, trashRepos: existingTrashRepos } = splitReposByTrash(existing)
+      const existingNames = new Set(existingActiveRepos.map(repo => repo.full_name))
+      const starredNames = new Set(starredRepos.map(repo => repo.full_name))
+      const removedNames = new Set(
+        existingActiveRepos
+          .filter(repo => !starredNames.has(repo.full_name))
+          .map(repo => repo.full_name),
+      )
 
       const { ensureLanguageTag } = useTagStore.getState()
-
-      const createdTags: string[] = []
-      const reposToAdd: Repo[] = newRepos.map((sr) => {
-        const tags: string[] = []
-        if (sr.language) {
-          const tagId = ensureLanguageTag(sr.language)
-          if (!createdTags.includes(tagId))
-            createdTags.push(tagId)
-          tags.push(tagId)
-        }
-        return {
-          full_name: sr.full_name,
-          description: sr.description,
-          language: sr.language,
-          topics: sr.topics || [],
-          stargazers_count: sr.stargazers_count,
-          updated_at: sr.updated_at,
-          starred_at: sr.starred_at,
-          tags,
-          note: '',
-        }
-      })
-
       const tagState = useTagStore.getState()
-      let autoCat = tagState.categories.find(c => c.id === AUTO_CAT_ID)
-      if (!autoCat && reposToAdd.length > 0) {
-        const topTopics = getTopTopics(starredRepos.map(sr => ({ full_name: sr.full_name, topics: sr.topics || [] })) as Repo[])
-        const autoTagIds = new Set<string>()
+      const autoCat = tagState.categories.find(category => category.id === AUTO_CAT_ID)
+      let autoTagIds = new Set<string>()
+
+      if (!autoCat && starredRepos.some(repo => !existingNames.has(repo.full_name))) {
+        const topTopics = getTopTopics(starredRepos.map(repo => ({ full_name: repo.full_name, topics: repo.topics || [] })) as Repo[])
         tagState.ensureAutoCategory()
         for (const topic of topTopics) {
-          const tid = tagIdFromTopic(topic)
-          tagState.ensureAutoTag(tid, topic)
-          autoTagIds.add(tid)
-        }
-        for (const repo of reposToAdd) {
-          for (const topic of repo.topics || []) {
-            const tid = tagIdFromTopic(topic)
-            if (autoTagIds.has(tid) && !repo.tags.includes(tid))
-              repo.tags.push(tid)
-          }
+          const tagId = tagIdFromTopic(topic)
+          tagState.ensureAutoTag(tagId, topic)
+          autoTagIds.add(tagId)
         }
       }
       else if (autoCat) {
-        const autoTagIds = new Set(autoCat.tags.map(t => t.id))
-        for (const repo of reposToAdd) {
-          for (const topic of repo.topics || []) {
-            const tid = tagIdFromTopic(topic)
-            if (autoTagIds.has(tid) && !repo.tags.includes(tid))
-              repo.tags.push(tid)
-          }
-        }
+        autoTagIds = new Set(autoCat.tags.map(tag => tag.id))
       }
 
-      const existingMap = new Map(existing.map(r => [r.full_name, r]))
-      const updatedRepos: Repo[] = starredRepos.map((sr) => {
-        const old = existingMap.get(sr.full_name)
-        if (old) {
-          return {
-            ...old,
-            description: sr.description,
-            language: sr.language,
-            topics: sr.topics || [],
-            stargazers_count: sr.stargazers_count,
-            updated_at: sr.updated_at,
-          }
-        }
-        const added = reposToAdd.find(r => r.full_name === sr.full_name)
-        return added || {
-          full_name: sr.full_name,
-          description: sr.description,
-          language: sr.language,
-          topics: sr.topics || [],
-          stargazers_count: sr.stargazers_count,
-          updated_at: sr.updated_at,
-          starred_at: sr.starred_at,
-          tags: [],
-          note: '',
-        }
-      })
+      const existingMap = new Map(existing.map(repo => [repo.full_name, repo]))
+      const updatedRepos = starredRepos.map(repo =>
+        buildRepoFromStarred(repo, existingMap.get(repo.full_name), ensureLanguageTag, autoTagIds),
+      )
 
       const now = new Date().toISOString()
-      const trash: Record<string, { tags: string[], note: string, trashed_at: string }> = {}
-      removedRepos.forEach((r) => {
-        trash[r.full_name] = { tags: r.tags, note: r.note, trashed_at: now }
-      })
+      const restoredNames = new Set(updatedRepos.map(repo => repo.full_name))
+      const nextTrashRepos = [
+        ...existingTrashRepos.filter(repo => !restoredNames.has(repo.full_name) && !removedNames.has(repo.full_name)),
+        ...existingActiveRepos
+          .filter(repo => removedNames.has(repo.full_name))
+          .map(repo => ({ ...repo, trashed_at: now })),
+      ]
+      const nextRepos = [...updatedRepos, ...nextTrashRepos]
 
       set({ syncProgress: '正在保存到 Gist...' })
 
-      const userTagMap: Record<string, string[]> = {}
-      updatedRepos.forEach((r) => {
-        const userTags = r.tags.filter(t => !t.startsWith('tag_lang_'))
-        if (userTags.length > 0)
-          userTagMap[r.full_name] = userTags
-      })
-      const noteMap: Record<string, string> = {}
-      updatedRepos.forEach((r) => {
-        if (r.note)
-          noteMap[r.full_name] = r.note
+      await persistRepoSnapshot({
+        repos: nextRepos,
+        categories: useTagStore.getState().categories,
+        lastSynced: now,
+        totalStarred: updatedRepos.length,
+        gistId,
+        pat,
       })
 
-      const currentCategories = useTagStore.getState().categories
-      const userCategories = currentCategories.filter(c => c.id !== 'cat_language')
-
-      await gist.updateGistFiles(gistId, pat, {
-        'meta.json': JSON.stringify({ version: 1, last_synced: now, total_starred: starredRepos.length }),
-        'categories.json': JSON.stringify({ categories: userCategories }),
-        'tags.json': JSON.stringify(userTagMap),
-        'notes.json': JSON.stringify(noteMap),
-        'trash.json': JSON.stringify(trash),
-      })
-
-      set({ repos: updatedRepos, lastSynced: now, syncing: false, syncProgress: '' })
-      saveCache(updatedRepos)
+      set({ repos: nextRepos, lastSynced: now, syncing: false, syncProgress: '' })
+      saveCache(nextRepos)
     }
     catch (err) {
       set({ syncing: false, syncProgress: '' })
@@ -210,10 +198,9 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           hasTopics = true
         const matched: string[] = []
         for (const topic of repo.topics || []) {
-          const tid = tagIdFromTopic(topic)
-          if (autoTagIds.has(tid) && !repo.tags.includes(tid)) {
-            matched.push(tid)
-          }
+          const tagId = tagIdFromTopic(topic)
+          if (autoTagIds.has(tagId) && !repo.tags.includes(tagId))
+            matched.push(tagId)
         }
         if (matched.length > 0) {
           classifiedCount++
@@ -222,22 +209,16 @@ export const useRepoStore = create<RepoState>((set, get) => ({
         return repo
       })
 
-      const autoCat = useTagStore.getState().categories.find(c => c.id === AUTO_CAT_ID)
+      const autoCat = useTagStore.getState().categories.find(category => category.id === AUTO_CAT_ID)
       const tagCount = autoCat?.tags.length || 0
 
-      const userTagMap: Record<string, string[]> = {}
-      updatedRepos.forEach((r) => {
-        const userTags = r.tags.filter(t => !t.startsWith('tag_lang_'))
-        if (userTags.length > 0)
-          userTagMap[r.full_name] = userTags
-      })
-
-      const allCategories = useTagStore.getState().categories
-      const saveCategories = allCategories.filter(c => c.id !== 'cat_language')
-
-      await gist.updateGistFiles(gistId, pat, {
-        'categories.json': JSON.stringify({ categories: saveCategories }),
-        'tags.json': JSON.stringify(userTagMap),
+      await persistRepoSnapshot({
+        repos: updatedRepos,
+        categories: useTagStore.getState().categories,
+        lastSynced: get().lastSynced,
+        totalStarred: splitReposByTrash(updatedRepos).activeRepos.length,
+        gistId,
+        pat,
       })
 
       set({ repos: updatedRepos, classifying: false })
@@ -252,46 +233,50 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
   toggleTag: (fullName, tagId) => {
     set((state) => {
-      const updated = state.repos.map(r =>
-        r.full_name === fullName
-          ? { ...r, tags: r.tags.includes(tagId) ? r.tags.filter(t => t !== tagId) : [...r.tags, tagId] }
-          : r,
+      const updated = state.repos.map(repo =>
+        repo.full_name === fullName
+          ? { ...repo, tags: repo.tags.includes(tagId) ? repo.tags.filter(tag => tag !== tagId) : [...repo.tags, tagId] }
+          : repo,
       )
       saveCache(updated)
+      void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
   },
 
   addTag: (fullName, tagId) => {
     set((state) => {
-      const updated = state.repos.map(r =>
-        r.full_name === fullName && !r.tags.includes(tagId)
-          ? { ...r, tags: [...r.tags, tagId] }
-          : r,
+      const updated = state.repos.map(repo =>
+        repo.full_name === fullName && !repo.tags.includes(tagId)
+          ? { ...repo, tags: [...repo.tags, tagId] }
+          : repo,
       )
       saveCache(updated)
+      void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
   },
 
   removeTag: (fullName, tagId) => {
     set((state) => {
-      const updated = state.repos.map(r =>
-        r.full_name === fullName
-          ? { ...r, tags: r.tags.filter(t => t !== tagId) }
-          : r,
+      const updated = state.repos.map(repo =>
+        repo.full_name === fullName
+          ? { ...repo, tags: repo.tags.filter(tag => tag !== tagId) }
+          : repo,
       )
       saveCache(updated)
+      void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
   },
 
   setNote: (fullName, note) => {
     set((state) => {
-      const updated = state.repos.map(r =>
-        r.full_name === fullName ? { ...r, note } : r,
+      const updated = state.repos.map(repo =>
+        repo.full_name === fullName ? { ...repo, note } : repo,
       )
       saveCache(updated)
+      void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
   },
