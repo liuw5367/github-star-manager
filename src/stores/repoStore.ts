@@ -1,9 +1,10 @@
 import type { Repo } from '../types'
 import { create } from 'zustand'
+import * as gist from '../api/gist'
 import * as github from '../api/github'
-import { migrateLegacyCache, REPO_CACHE_KEY, scopedCacheKey } from '../lib/accountCache'
+import { loadAccountSnapshot, migrateLegacyCache, REPO_CACHE_KEY, scopedCacheKey, shouldPullCloudBeforeSync } from '../lib/accountCache'
 import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
-import { persistRepoSnapshot, splitReposByTrash, updateRepoStarState } from '../lib/repoPersistence'
+import { hydrateGistFiles, persistRepoSnapshot, splitReposByTrash, updateRepoStarState } from '../lib/repoPersistence'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
 
@@ -135,6 +136,16 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     set({ syncing: true, syncProgress: '正在拉取 Star 数据...' })
 
     try {
+      const snapshot = loadAccountSnapshot(localStorage, gistId)
+      if (shouldPullCloudBeforeSync(snapshot)) {
+        set({ syncProgress: '正在读取云端数据...' })
+        const files = await gist.getGistFiles(gistId, pat)
+        const hydrated = hydrateGistFiles(files, get().repos)
+        useTagStore.getState().setCategories(hydrated.categories)
+        set({ repos: hydrated.repos, lastSynced: hydrated.lastSynced })
+      }
+
+      set({ syncProgress: '正在拉取 Star 数据...' })
       const starredRepos = await github.getStarred(pat, (page, total) => {
         set({ syncProgress: `正在拉取第 ${page} 页 / 共 ${total} 页...` })
       })

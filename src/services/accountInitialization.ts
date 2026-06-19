@@ -1,9 +1,10 @@
 import type { GistCandidate } from '../api/gist'
-import type { Category, TrashItem, User } from '../types'
+import type { User } from '../types'
 import { createGist, discoverGitStarsGists, upgradeLegacyGist } from '../api/gist'
 import { getUser } from '../api/github'
-import { decideAccountBootstrap } from '../lib/accountBootstrap'
-import { mergeRemoteRepoData, parseGistJson } from '../lib/repoPersistence'
+import { decideAccountBootstrap, restoreCachedAccount } from '../lib/accountBootstrap'
+import { saveAccountSnapshot } from '../lib/accountCache'
+import { hydrateGistFiles } from '../lib/repoPersistence'
 import { useAuthStore } from '../stores/authStore'
 import { useRepoStore } from '../stores/repoStore'
 import { useTagStore } from '../stores/tagStore'
@@ -18,18 +19,22 @@ interface InitializeAccountOptions {
   onStatus?: (message: string) => void
 }
 
-function hydrateCandidate(candidate: GistCandidate, cachedRepos: ReturnType<typeof useRepoStore.getState>['repos']) {
-  const meta = parseGistJson(candidate.files['meta.json'], { last_synced: '' })
-  const categories = parseGistJson(candidate.files['categories.json'], { categories: [] as Category[] })
-  const tagMap = parseGistJson(candidate.files['tags.json'], {} as Record<string, string[]>)
-  const noteMap = parseGistJson(candidate.files['notes.json'], {} as Record<string, string>)
-  const trashMap = parseGistJson(candidate.files['trash.json'], {} as Record<string, TrashItem>)
+export function restoreAccountFromCache(pat: string, gistId: string): boolean {
+  if (!pat.trim() || !gistId)
+    return false
 
-  return {
-    categories: categories.categories ?? [],
-    lastSynced: meta.last_synced ?? '',
-    repos: mergeRemoteRepoData({ cachedRepos, tagMap, noteMap, trashMap }),
-  }
+  return restoreCachedAccount(localStorage, gistId, ({ snapshot, user }) => {
+    useRepoStore.getState().activateCache(gistId, null)
+    useTagStore.getState().activateCache(gistId, null)
+    useTagStore.getState().setCategories(snapshot.categories)
+    useRepoStore.getState().setLastSynced(snapshot.lastSynced)
+    useRepoStore.getState().setRepos(snapshot.repos, false)
+    useAuthStore.getState().login(pat, user, gistId)
+  })
+}
+
+function hydrateCandidate(candidate: GistCandidate, cachedRepos: ReturnType<typeof useRepoStore.getState>['repos']) {
+  return hydrateGistFiles(candidate.files, cachedRepos)
 }
 
 export async function initializeAccount(
@@ -101,6 +106,16 @@ export async function initializeAccount(
   const repos = useRepoStore.getState().repos
   if (repos.length > 0)
     useTagStore.getState().ensureAutoCategories(repos)
+  saveAccountSnapshot(localStorage, {
+    version: 1,
+    gistId: candidate.id,
+    ownerLogin: user.login,
+    repos: useRepoStore.getState().repos,
+    categories: useTagStore.getState().categories,
+    lastSynced: useRepoStore.getState().lastSynced,
+    savedAt: new Date().toISOString(),
+    pendingCloudWrite: false,
+  })
   useAuthStore.getState().login(token, user, candidate.id)
   return { kind: 'ready' }
 }

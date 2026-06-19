@@ -105,14 +105,16 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 
 ### 4.1 首次使用流程
 
-应用启动时检测 `localStorage` 中是否存在 PAT。存在 PAT 时验证账号并自动查询该账号下的 GitStars Gist：
+应用启动时优先读取当前 Gist 对应的完整本地快照。快照有效时直接恢复账号、分类和仓库数据，不发送网络请求；只有首次使用、新设备或缓存无效时才验证账号并查询 GitStars Gist：
 
 ```
 启动
   ↓
-有 PAT？
-  ├── 否 → 显示 PAT 输入页
-  └── 是 → 验证 PAT → 查询 GitStars Gist
+有 PAT、Gist ID 和有效快照？
+  ├── 是 → 直接加载本地快照 → 进入
+  └── 否 → 有 PAT？
+             ├── 否 → 显示 PAT 输入页
+             └── 是 → 验证 PAT → 查询 GitStars Gist
                          ├── 无 → 创建 Gist → 首次拉取 Stars → 进入
                          ├── 一个 → 加载 Gist；无账号缓存时拉取 Stars 补全 → 进入
                          └── 多个 → 显示候选列表，用户选择后进入
@@ -143,7 +145,9 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 
 - 存储位置：`localStorage['github_star_manager_pat']`
 - Gist ID 同样存 `localStorage['github_star_manager_gist_id']`
-- 账号仓库缓存使用 `localStorage['gsm_repo_cache:<gist_id>']`，自动标签名使用 `localStorage['gsm_auto_tag_names:<gist_id>']`
+- 完整账号快照使用 `localStorage['gsm_account_snapshot:<gist_id>']`，包含仓库、分类、同步时间和云端待写状态
+- 用户信息使用 `localStorage['gsm_user_cache:<gist_id>']`，自动标签名使用 `localStorage['gsm_auto_tag_names:<gist_id>']`
+- 旧版 `gsm_repo_cache:<gist_id>` 在完整快照建立后删除，避免重复占用空间
 - 设置页提供「退出登录」按钮，清除 localStorage 并返回初始化向导
 
 ---
@@ -159,7 +163,9 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 ```
 点击同步按钮
   ↓
-读取 Gist 中 meta.json 获取上次同步时间
+本地有待上传修改？
+  ├── 是 → 保留本地数据，不读取云端
+  └── 否 → 通过已知 Gist ID 读取云端分类、备注和回收站并合并
   ↓
 分页拉取 GitHub API：GET /user/starred?per_page=100&sort=created&direction=desc
 （每页 100 条，循环直到全部拉完）
@@ -521,7 +527,9 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 
 ### 10.4 本地缓存
 
-GitHub API 的 star 数据（仓库列表及元信息）按 Gist ID 缓存在 `localStorage` 中，key 为 `gsm_repo_cache:<gist_id>`，每次同步后覆盖写入。应用启动时只加载当前 Gist 对应的缓存；旧版 `gsm_repo_cache` 仅在旧本地 Gist ID 与当前发现结果一致时迁移，防止账号间数据串写。
+账号完整状态按 Gist ID 缓存在 `localStorage` 中，key 为 `gsm_account_snapshot:<gist_id>`。快照包含仓库、分类、上次同步时间、保存时间以及 `pendingCloudWrite`，页面刷新优先从该快照恢复，不验证 PAT，也不查询 Gist。
+
+每次写入云端前先保存 `pendingCloudWrite: true` 的本地快照；Gist 写入成功后再标记为 `false`。主动同步时，干净快照先通过已知 Gist ID 读取一次云端数据，以合并其他设备的修改；pending 快照跳过云端读取，避免未上传的本地修改被覆盖。缓存损坏、版本不兼容或用户与快照 owner 不一致时，回退到完整网络初始化。
 
 ---
 

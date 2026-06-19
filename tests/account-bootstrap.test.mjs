@@ -55,3 +55,38 @@ test('syncs an existing Gist when cache is missing or initialization is unfinish
     candidate: unfinished,
   })
 })
+
+test('restores a complete cached account without invoking the network initializer', () => {
+  const values = new Map()
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  }
+  const snapshot = {
+    version: 1,
+    gistId: 'gist-a',
+    ownerLogin: 'octocat',
+    repos: [],
+    categories: [],
+    lastSynced: '2026-06-19T00:00:00Z',
+    savedAt: '2026-06-19T00:01:00Z',
+    pendingCloudWrite: false,
+  }
+  const user = {
+    login: 'octocat',
+    avatar_url: 'https://example.test/avatar.png',
+    name: 'Octocat',
+    public_repos: 7,
+  }
+  values.set('gsm_account_snapshot:gist-a', JSON.stringify(snapshot))
+  values.set('gsm_user_cache:gist-a', JSON.stringify(user))
+  let restored = null
+
+  const result = bootstrap.restoreCachedAccount(storage, 'gist-a', (account) => {
+    restored = account
+  })
+
+  assert.equal(result, true)
+  assert.deepEqual(restored, { snapshot, user })
+})

@@ -1,4 +1,7 @@
 import type { GistCandidate } from '../api/gist'
+import type { User } from '../types'
+import type { AccountSnapshot, StorageLike } from './accountCache.ts'
+import { loadCachedAccount } from './accountCache.ts'
 
 export type AccountBootstrapDecision
   = | { kind: 'create' }
@@ -25,4 +28,16 @@ export function decideAccountBootstrap(
   if (initialized && hasScopedCache)
     return { kind: 'load', candidate }
   return { kind: 'sync', candidate }
+}
+
+export function restoreCachedAccount(
+  storage: StorageLike,
+  gistId: string,
+  apply: (account: { snapshot: AccountSnapshot, user: User }) => void,
+): boolean {
+  const account = loadCachedAccount(storage, gistId)
+  if (!account)
+    return false
+  apply(account)
+  return true
 }

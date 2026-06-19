@@ -1,6 +1,6 @@
 import type { User } from '../types'
 import { create } from 'zustand'
-import { AUTO_TAG_NAMES_KEY, REPO_CACHE_KEY, scopedCacheKey } from '../lib/accountCache'
+import { AUTO_TAG_NAMES_KEY, clearAccountCache, REPO_CACHE_KEY, saveCachedUser, scopedCacheKey } from '../lib/accountCache'
 
 interface AuthState {
   pat: string
@@ -30,12 +30,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: (pat, user, gistId) => {
     localStorage.setItem('github_star_manager_pat', pat)
     localStorage.setItem('github_star_manager_gist_id', gistId)
+    saveCachedUser(localStorage, gistId, user)
     set({ pat, gistId, user, isAuth: true, checking: false })
   },
   logout: () => {
     const currentGistId = get().gistId
     if (currentGistId) {
-      localStorage.removeItem(scopedCacheKey(REPO_CACHE_KEY, currentGistId))
+      clearAccountCache(localStorage, currentGistId)
       localStorage.removeItem(scopedCacheKey(AUTO_TAG_NAMES_KEY, currentGistId))
     }
     localStorage.removeItem('github_star_manager_pat')

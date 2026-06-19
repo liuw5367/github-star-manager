@@ -3,10 +3,12 @@ import test from 'node:test'
 
 import {
   buildGistPayload,
+  hydrateGistFiles,
   mergeRemoteRepoData,
   reconcileReposWithCategories,
   splitReposByTrash,
   updateRepoStarState,
+  writeRepoSnapshot,
 } from '../src/lib/repoPersistence.ts'
 
 test('mergeRemoteRepoData merges cached repos, remote tags/notes, and trash state', () => {
@@ -235,4 +237,128 @@ test('updateRepoStarState restores a repository from trash', () => {
   const updated = updateRepoStarState([repo], 'acme/widgets', true, 'unused')
 
   assert.equal(updated[0].trashed_at, null)
+})
+
+test('writeRepoSnapshot saves pending locally before cloud and marks clean after success', async () => {
+  const values = new Map()
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  }
+  const args = {
+    repos: [],
+    categories: [],
+    ownerLogin: 'octocat',
+    lastSynced: '2026-06-19T00:00:00Z',
+    totalStarred: 0,
+    gistId: 'gist-a',
+    pat: 'token',
+  }
+
+  await writeRepoSnapshot(args, {
+    storage,
+    now: () => '2026-06-19T00:01:00Z',
+    updateGistFiles: async () => {
+      const pending = JSON.parse(storage.getItem('gsm_account_snapshot:gist-a'))
+      assert.equal(pending.pendingCloudWrite, true)
+    },
+  })
+
+  const saved = JSON.parse(storage.getItem('gsm_account_snapshot:gist-a'))
+  assert.equal(saved.pendingCloudWrite, false)
+  assert.equal(saved.savedAt, '2026-06-19T00:01:00Z')
+})
+
+test('writeRepoSnapshot leaves the local backup pending when cloud fails', async () => {
+  const values = new Map()
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  }
+  const args = {
+    repos: [],
+    categories: [],
+    ownerLogin: 'octocat',
+    lastSynced: '',
+    totalStarred: 0,
+    gistId: 'gist-a',
+    pat: 'token',
+  }
+
+  await assert.rejects(() => writeRepoSnapshot(args, {
+    storage,
+    now: () => '2026-06-19T00:01:00Z',
+    updateGistFiles: async () => { throw new Error('offline') },
+  }), /offline/)
+
+  const saved = JSON.parse(storage.getItem('gsm_account_snapshot:gist-a'))
+  assert.equal(saved.pendingCloudWrite, true)
+})
+
+test('hydrateGistFiles merges remote metadata into cached repository details', () => {
+  const cachedRepos = [{
+    full_name: 'acme/repo',
+    description: 'cached description',
+    language: 'TypeScript',
+    topics: [],
+    stargazers_count: 10,
+    updated_at: '2026-06-18T00:00:00Z',
+    starred_at: '2026-06-17T00:00:00Z',
+    tags: ['tag_lang_typescript'],
+    note: '',
+    trashed_at: null,
+  }]
+  const files = {
+    'meta.json': JSON.stringify({ last_synced: '2026-06-19T00:00:00Z' }),
+    'categories.json': JSON.stringify({ categories: [{ id: 'cat_tools', name: 'Tools', order: 0, tags: [] }] }),
+    'tags.json': JSON.stringify({ 'acme/repo': ['tag_cli'] }),
+    'notes.json': JSON.stringify({ 'acme/repo': 'remote note' }),
+    'trash.json': '{}',
+  }
+
+  const hydrated = hydrateGistFiles(files, cachedRepos)
+
+  assert.equal(hydrated.lastSynced, '2026-06-19T00:00:00Z')
+  assert.deepEqual(hydrated.categories, [{ id: 'cat_tools', name: 'Tools', order: 0, tags: [] }])
+  assert.equal(hydrated.repos[0].description, 'cached description')
+  assert.deepEqual(hydrated.repos[0].tags, ['tag_lang_typescript', 'tag_cli'])
+  assert.equal(hydrated.repos[0].note, 'remote note')
+})
+
+test('an older cloud completion cannot overwrite a newer local snapshot', async () => {
+  const values = new Map()
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  }
+  const completions = []
+  const updateGistFiles = () => new Promise(resolve => completions.push(resolve))
+  const base = {
+    categories: [],
+    ownerLogin: 'octocat',
+    lastSynced: '',
+    totalStarred: 1,
+    gistId: 'gist-a',
+    pat: 'token',
+  }
+  const first = writeRepoSnapshot({
+    ...base,
+    repos: [{ full_name: 'acme/repo', tags: ['tag_old'], note: '' }],
+  }, { storage, now: () => '2026-06-19T00:01:00Z', updateGistFiles })
+  const second = writeRepoSnapshot({
+    ...base,
+    repos: [{ full_name: 'acme/repo', tags: ['tag_new'], note: '' }],
+  }, { storage, now: () => '2026-06-19T00:01:00Z', updateGistFiles })
+
+  completions[1]()
+  await second
+  completions[0]()
+  await first
+
+  const saved = JSON.parse(storage.getItem('gsm_account_snapshot:gist-a'))
+  assert.deepEqual(saved.repos[0].tags, ['tag_new'])
+  assert.equal(saved.pendingCloudWrite, true)
 })

@@ -2,7 +2,7 @@ import type { AccountInitializationResult } from './services/accountInitializati
 import { useEffect, useState } from 'react'
 import { AuthPage } from './components/auth/AuthPage'
 import AppShell from './components/layout/AppShell'
-import { initializeAccount } from './services/accountInitialization'
+import { initializeAccount, restoreAccountFromCache } from './services/accountInitialization'
 import { useAuthStore } from './stores/authStore'
 
 type PendingSelection = Extract<AccountInitializationResult, { kind: 'choose' }>
@@ -25,6 +25,8 @@ export default function App() {
       setCheckingDone()
       return
     }
+    if (storedGistId && restoreAccountFromCache(storedPat, storedGistId))
+      return
 
     let cancelled = false
     ;(async () => {

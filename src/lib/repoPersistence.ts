@@ -1,6 +1,8 @@
 import type { GistFiles } from '../api/gist.ts'
 import type { Category, Repo, TrashItem } from '../types'
+import type { StorageLike } from './accountCache.ts'
 import * as gist from '../api/gist.ts'
+import { loadAccountSnapshot, saveAccountSnapshot } from './accountCache.ts'
 
 interface RemoteRepoMaps {
   tagMap: Record<string, string[]>
@@ -14,6 +16,14 @@ interface GistPayloadArgs {
   ownerLogin: string
   lastSynced: string
   totalStarred: number
+}
+
+type RepoSnapshotArgs = GistPayloadArgs & { gistId: string, pat: string }
+
+interface RepoSnapshotDependencies {
+  storage: StorageLike
+  now: () => string
+  updateGistFiles: typeof gist.updateGistFiles
 }
 
 function toRepoBase(fullName: string, repo?: Partial<Repo>): Repo {
@@ -107,6 +117,24 @@ export function mergeRemoteRepoData(
   return merged
 }
 
+export function hydrateGistFiles(files: GistFiles, cachedRepos: Repo[]): {
+  categories: Category[]
+  lastSynced: string
+  repos: Repo[]
+} {
+  const meta = parseGistJson(files['meta.json'], { last_synced: '' })
+  const categories = parseGistJson(files['categories.json'], { categories: [] as Category[] })
+  const tagMap = parseGistJson(files['tags.json'], {} as Record<string, string[]>)
+  const noteMap = parseGistJson(files['notes.json'], {} as Record<string, string>)
+  const trashMap = parseGistJson(files['trash.json'], {} as Record<string, TrashItem>)
+
+  return {
+    categories: categories.categories ?? [],
+    lastSynced: meta.last_synced ?? '',
+    repos: mergeRemoteRepoData({ cachedRepos, tagMap, noteMap, trashMap }),
+  }
+}
+
 export function reconcileReposWithCategories(repos: Repo[], categories: Category[]): Repo[] {
   const validUserTags = new Set(
     categories
@@ -163,7 +191,7 @@ export function buildGistPayload({ repos, categories, ownerLogin, lastSynced, to
   }
 }
 
-export async function persistRepoSnapshot({
+export async function writeRepoSnapshot({
   repos,
   categories,
   ownerLogin,
@@ -171,10 +199,41 @@ export async function persistRepoSnapshot({
   gistId,
   pat,
   totalStarred,
-}: GistPayloadArgs & { gistId: string, pat: string }): Promise<void> {
-  await gist.updateGistFiles(
+}: RepoSnapshotArgs, dependencies: RepoSnapshotDependencies): Promise<void> {
+  const savedAt = dependencies.now()
+  const snapshot = {
+    version: 1 as const,
+    gistId,
+    ownerLogin,
+    repos,
+    categories,
+    lastSynced,
+    savedAt,
+    pendingCloudWrite: true,
+  }
+  saveAccountSnapshot(dependencies.storage, snapshot)
+
+  await dependencies.updateGistFiles(
     gistId,
     pat,
     buildGistPayload({ repos, categories, ownerLogin, lastSynced, totalStarred }),
   )
+
+  const current = loadAccountSnapshot(dependencies.storage, gistId)
+  if (!current)
+    return
+  if (JSON.stringify(current) === JSON.stringify(snapshot)) {
+    saveAccountSnapshot(dependencies.storage, { ...snapshot, pendingCloudWrite: false })
+  }
+  else {
+    saveAccountSnapshot(dependencies.storage, { ...current, pendingCloudWrite: true })
+  }
+}
+
+export async function persistRepoSnapshot(args: RepoSnapshotArgs): Promise<void> {
+  await writeRepoSnapshot(args, {
+    storage: localStorage,
+    now: () => new Date().toISOString(),
+    updateGistFiles: gist.updateGistFiles,
+  })
 }
