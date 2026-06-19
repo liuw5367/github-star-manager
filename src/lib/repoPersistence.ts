@@ -11,6 +11,7 @@ interface RemoteRepoMaps {
 interface GistPayloadArgs {
   repos: Repo[]
   categories: Category[]
+  ownerLogin: string
   lastSynced: string
   totalStarred: number
 }
@@ -111,7 +112,7 @@ export function reconcileReposWithCategories(repos: Repo[], categories: Category
   })
 }
 
-export function buildGistPayload({ repos, categories, lastSynced, totalStarred }: GistPayloadArgs): GistFiles {
+export function buildGistPayload({ repos, categories, ownerLogin, lastSynced, totalStarred }: GistPayloadArgs): GistFiles {
   const { activeRepos, trashRepos } = splitReposByTrash(repos)
   const userCategories = categories.filter(category => category.id !== 'cat_language')
 
@@ -136,7 +137,14 @@ export function buildGistPayload({ repos, categories, lastSynced, totalStarred }
   }
 
   return {
-    'meta.json': JSON.stringify({ version: 1, last_synced: lastSynced, total_starred: totalStarred }),
+    'meta.json': JSON.stringify({
+      app: gist.GIST_APP_ID,
+      version: 1,
+      owner_login: ownerLogin,
+      initialized: true,
+      last_synced: lastSynced,
+      total_starred: totalStarred,
+    }),
     'categories.json': JSON.stringify({ categories: userCategories }),
     'tags.json': JSON.stringify(tagMap),
     'notes.json': JSON.stringify(noteMap),
@@ -147,6 +155,7 @@ export function buildGistPayload({ repos, categories, lastSynced, totalStarred }
 export async function persistRepoSnapshot({
   repos,
   categories,
+  ownerLogin,
   lastSynced,
   gistId,
   pat,
@@ -155,6 +164,6 @@ export async function persistRepoSnapshot({
   await gist.updateGistFiles(
     gistId,
     pat,
-    buildGistPayload({ repos, categories, lastSynced, totalStarred }),
+    buildGistPayload({ repos, categories, ownerLogin, lastSynced, totalStarred }),
   )
 }

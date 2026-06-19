@@ -1,9 +1,12 @@
 import type { Category, Repo } from '../types'
 import { create } from 'zustand'
+import { AUTO_TAG_NAMES_KEY, migrateLegacyCache, scopedCacheKey } from '../lib/accountCache'
 import { AUTO_CAT_ID, AUTO_CAT_NAME, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
 
 interface TagState {
   categories: Category[]
+  cacheGistId: string
+  activateCache: (gistId: string, previousGistId: string | null) => void
   setCategories: (categories: Category[]) => void
   addCategory: (name: string) => string
   deleteCategory: (catId: string) => void
@@ -18,13 +21,14 @@ interface TagState {
   syncAutoTags: (repos: Repo[]) => Set<string>
 }
 
-const AUTO_TAG_NAMES_KEY = 'gsm_auto_tag_names'
-
-function saveAutoTagName(tagId: string, name: string) {
+function saveAutoTagName(gistId: string, tagId: string, name: string) {
+  if (!gistId)
+    return
   try {
-    const map = JSON.parse(localStorage.getItem(AUTO_TAG_NAMES_KEY) || '{}')
+    const key = scopedCacheKey(AUTO_TAG_NAMES_KEY, gistId)
+    const map = JSON.parse(localStorage.getItem(key) || '{}')
     map[tagId] = name
-    localStorage.setItem(AUTO_TAG_NAMES_KEY, JSON.stringify(map))
+    localStorage.setItem(key, JSON.stringify(map))
   }
   catch {}
 }
@@ -35,6 +39,12 @@ function langTagId(language: string): string {
 
 export const useTagStore = create<TagState>((set, get) => ({
   categories: [],
+  cacheGistId: '',
+
+  activateCache: (gistId, previousGistId) => {
+    migrateLegacyCache(localStorage, AUTO_TAG_NAMES_KEY, gistId, previousGistId)
+    set({ cacheGistId: gistId })
+  },
 
   setCategories: categories => set({ categories }),
 
@@ -111,7 +121,7 @@ export const useTagStore = create<TagState>((set, get) => ({
     if (exists)
       return tagId
 
-    saveAutoTagName(tagId, language)
+    saveAutoTagName(get().cacheGistId, tagId, language)
     const tagCount = langCat.tags.length
     set(state => ({
       categories: state.categories.map(cat =>
@@ -125,7 +135,7 @@ export const useTagStore = create<TagState>((set, get) => ({
 
   ensureAutoCategories: (repos) => {
     const autoTagNames: Record<string, string> = JSON.parse(
-      localStorage.getItem(AUTO_TAG_NAMES_KEY) || '{}',
+      localStorage.getItem(scopedCacheKey(AUTO_TAG_NAMES_KEY, get().cacheGistId)) || '{}',
     )
     const seen = new Set<string>()
     for (const repo of repos) {

@@ -38,7 +38,10 @@ export interface TrashItem {
 }
 
 export interface Meta {
+  app: 'gitstars'
   version: number
+  owner_login: string
+  initialized: boolean
   last_synced: string
   total_starred: number
 }

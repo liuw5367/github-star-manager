@@ -17,6 +17,7 @@ export function TagManagerModal() {
   const setToast = useUiStore(s => s.setToast)
   const pat = useAuthStore(s => s.pat)
   const gistId = useAuthStore(s => s.gistId)
+  const user = useAuthStore(s => s.user)
 
   const [localCats, setLocalCats] = useState<Category[]>(JSON.parse(JSON.stringify(categories)))
   const [newTagName, setNewTagName] = useState('')
@@ -78,10 +79,11 @@ export function TagManagerModal() {
     setRepos(nextRepos)
 
     try {
-      if (pat && gistId) {
+      if (pat && gistId && user) {
         await persistRepoSnapshot({
           repos: nextRepos,
           categories: localCats,
+          ownerLogin: user.login,
           lastSynced,
           totalStarred: splitReposByTrash(nextRepos).activeRepos.length,
           gistId,

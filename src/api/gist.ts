@@ -1,4 +1,23 @@
 const BASE = 'https://api.github.com'
+export const GIST_DESCRIPTION = 'gitstars-data-v1'
+export const LEGACY_GIST_DESCRIPTION = 'GitHub Star Manager Data'
+export const GIST_APP_ID = 'gitstars'
+
+const REQUIRED_FILE_NAMES: (keyof GistFiles)[] = [
+  'meta.json',
+  'categories.json',
+  'tags.json',
+  'notes.json',
+  'trash.json',
+]
+
+export interface GistCandidate {
+  id: string
+  description: string
+  updatedAt: string
+  legacy: boolean
+  files: GistFiles
+}
 
 export interface GistFiles {
   'meta.json': string
@@ -15,9 +34,141 @@ function headers(pat: string): HeadersInit {
   }
 }
 
-export async function createGist(pat: string): Promise<string> {
+export async function discoverGitStarsGists(
+  pat: string,
+  request: typeof fetch = fetch,
+): Promise<GistCandidate[]> {
+  const summaries: Array<{ id: string, description: string }> = []
+  let pageNumber = 1
+
+  while (true) {
+    const url = `${BASE}/gists?per_page=100&page=${pageNumber}`
+    const res = await request(url, { headers: headers(pat) })
+    if (!res.ok)
+      throw new Error(`查找 Gist 失败 (${res.status})`)
+
+    const page = await res.json()
+    for (const item of page) {
+      if (item.description === GIST_DESCRIPTION || item.description === LEGACY_GIST_DESCRIPTION) {
+        summaries.push({
+          id: item.id,
+          description: item.description,
+        })
+      }
+    }
+
+    if (!hasNextPage(res.headers.get('link')))
+      break
+    pageNumber++
+  }
+
+  const candidates = await Promise.all(summaries.map(async (summary): Promise<GistCandidate | null> => {
+    const res = await request(`${BASE}/gists/${summary.id}`, { headers: headers(pat) })
+    if (!res.ok)
+      throw new Error(`读取 Gist 失败 (${res.status})`)
+
+    const data = await res.json()
+    const files = readGistFiles(data)
+    if (!files)
+      return null
+
+    const meta = parseMeta(files['meta.json'])
+    const legacy = summary.description === LEGACY_GIST_DESCRIPTION
+    const valid = legacy
+      ? meta?.version === 1 && !meta.app
+      : meta?.version === 1 && meta.app === GIST_APP_ID
+
+    if (!valid)
+      return null
+
+    return {
+      id: data.id,
+      description: data.description,
+      updatedAt: data.updated_at,
+      legacy,
+      files,
+    }
+  }))
+
+  return candidates.filter((candidate): candidate is GistCandidate => Boolean(candidate))
+}
+
+export async function upgradeLegacyGist(
+  candidate: GistCandidate,
+  pat: string,
+  ownerLogin: string,
+  request: typeof fetch = fetch,
+): Promise<GistCandidate> {
+  const previous = JSON.parse(candidate.files['meta.json'])
+  const metaContent = JSON.stringify({
+    app: GIST_APP_ID,
+    version: 1,
+    owner_login: ownerLogin,
+    initialized: true,
+    last_synced: previous.last_synced || '',
+    total_starred: previous.total_starred || 0,
+  })
+  const res = await request(`${BASE}/gists/${candidate.id}`, {
+    method: 'PATCH',
+    headers: headers(pat),
+    body: JSON.stringify({
+      description: GIST_DESCRIPTION,
+      files: {
+        'meta.json': { content: metaContent },
+      },
+    }),
+  })
+  if (!res.ok)
+    throw new Error(`升级 Gist 失败 (${res.status})`)
+
+  return {
+    ...candidate,
+    description: GIST_DESCRIPTION,
+    legacy: false,
+    files: {
+      ...candidate.files,
+      'meta.json': metaContent,
+    },
+  }
+}
+
+function hasNextPage(linkHeader: string | null): boolean {
+  return Boolean(linkHeader
+    ? linkHeader
+        .split(',')
+        .map(part => part.trim())
+        .find(part => part.endsWith('rel="next"'))
+    : false)
+}
+
+function parseMeta(raw: string): { app?: string, version?: number } | null {
+  try {
+    return JSON.parse(raw)
+  }
+  catch {
+    return null
+  }
+}
+
+function readGistFiles(data: any): GistFiles | null {
+  if (!REQUIRED_FILE_NAMES.every(name => typeof data.files?.[name]?.content === 'string'))
+    return null
+
+  return Object.fromEntries(
+    REQUIRED_FILE_NAMES.map(name => [name, data.files[name].content]),
+  ) as unknown as GistFiles
+}
+
+export async function createGist(pat: string, ownerLogin: string): Promise<string> {
   const defaultFiles: GistFiles = {
-    'meta.json': JSON.stringify({ version: 1, last_synced: '', total_starred: 0 }),
+    'meta.json': JSON.stringify({
+      app: GIST_APP_ID,
+      version: 1,
+      owner_login: ownerLogin,
+      initialized: false,
+      last_synced: '',
+      total_starred: 0,
+    }),
     'categories.json': JSON.stringify({ categories: [] }),
     'tags.json': JSON.stringify({}),
     'notes.json': JSON.stringify({}),
@@ -33,7 +184,7 @@ export async function createGist(pat: string): Promise<string> {
     method: 'POST',
     headers: headers(pat),
     body: JSON.stringify({
-      description: 'GitHub Star Manager Data',
+      description: GIST_DESCRIPTION,
       public: false,
       files,
     }),

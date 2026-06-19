@@ -105,17 +105,20 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 
 ### 4.1 首次使用流程
 
-应用启动时检测 `localStorage` 中是否存在 PAT 与 Gist ID：
+应用启动时检测 `localStorage` 中是否存在 PAT。存在 PAT 时验证账号并自动查询该账号下的 GitStars Gist：
 
 ```
 启动
   ↓
-有 PAT + Gist ID？
-  ├── 是 → 验证 PAT 有效性 → 进入主界面
-  └── 否 → 显示初始化向导
+有 PAT？
+  ├── 否 → 显示 PAT 输入页
+  └── 是 → 验证 PAT → 查询 GitStars Gist
+                         ├── 无 → 创建 Gist → 首次拉取 Stars → 进入
+                         ├── 一个 → 加载 Gist；无账号缓存时拉取 Stars 补全 → 进入
+                         └── 多个 → 显示候选列表，用户选择后进入
 ```
 
-### 4.2 初始化向导（三步）
+### 4.2 初始化流程
 
 **第一步：填写 PAT**
 
@@ -126,23 +129,21 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
   - `gist` — 读写私有 Gist
 - 填写后点击「验证」，调用 `GET /user` 确认 PAT 有效，显示头像和用户名作为确认
 
-**第二步：配置 Gist**
+**自动配置 Gist**
 
-提供两个选项（Radio 切换）：
-
-- **新建 Gist**（默认）：点击「创建」，自动在用户账号下创建一个私有 Gist，描述为 `GitHub Star Manager Data`，获取 Gist ID 并存储
-- **使用已有 Gist**：输入框填入 Gist ID（换设备时使用），填写后点击「验证」，检查该 Gist 是否包含预期的文件结构
-
-**第三步：首次同步**
-
-- 显示「即将拉取你的所有 Star 数据，可能需要一点时间」
-- 点击「开始同步」，进入主界面并触发同步流程
-- 同步完成前主界面显示骨架屏
+- 分页调用 GitHub Gist API，查找描述为 `gitstars-data-v1` 的候选
+- 以 `meta.json.app === "gitstars"`、`version === 1` 和完整文件结构作为有效性依据
+- 没有有效 Gist 时自动创建私有 Gist，并立即拉取全部 Star 数据
+- 只有一个有效 Gist 时直接加载；新设备没有账号缓存时拉取 Stars 以补全仓库元信息
+- 多个有效 Gist 时显示 ID、更新时间和 Star 数量，由用户选择
+- 旧描述 `GitHub Star Manager Data` 且文件结构有效的 Gist 原地升级，不创建副本
+- 创建成功但首次同步失败时保留 `initialized: false`，下次检测到后继续同步
 
 ### 4.3 PAT 存储
 
 - 存储位置：`localStorage['github_star_manager_pat']`
 - Gist ID 同样存 `localStorage['github_star_manager_gist_id']`
+- 账号仓库缓存使用 `localStorage['gsm_repo_cache:<gist_id>']`，自动标签名使用 `localStorage['gsm_auto_tag_names:<gist_id>']`
 - 设置页提供「退出登录」按钮，清除 localStorage 并返回初始化向导
 
 ---
@@ -449,7 +450,10 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 **meta.json**
 ```json
 {
+  "app": "gitstars",
   "version": 1,
+  "owner_login": "octocat",
+  "initialized": true,
   "last_synced": "2024-06-01T10:00:00Z",
   "total_starred": 342
 }
@@ -517,7 +521,7 @@ GitHub Star 功能本质上是一个书签系统，但缺乏分类管理能力�
 
 ### 10.4 本地缓存
 
-GitHub API 的 star 数据（仓库列表及元信息）缓存在 `localStorage` 中，key 为 `gsm_repo_cache`，每次同步后覆盖写入。应用启动时优先从缓存读取展示，后台静默验证数据新鲜度。
+GitHub API 的 star 数据（仓库列表及元信息）按 Gist ID 缓存在 `localStorage` 中，key 为 `gsm_repo_cache:<gist_id>`，每次同步后覆盖写入。应用启动时只加载当前 Gist 对应的缓存；旧版 `gsm_repo_cache` 仅在旧本地 Gist ID 与当前发现结果一致时迁移，防止账号间数据串写。
 
 ---
 

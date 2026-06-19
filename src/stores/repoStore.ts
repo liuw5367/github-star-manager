@@ -1,6 +1,7 @@
 import type { Repo } from '../types'
 import { create } from 'zustand'
 import * as github from '../api/github'
+import { migrateLegacyCache, REPO_CACHE_KEY, scopedCacheKey } from '../lib/accountCache'
 import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
 import { persistRepoSnapshot, splitReposByTrash } from '../lib/repoPersistence'
 import { useAuthStore } from './authStore'
@@ -8,13 +9,15 @@ import { useTagStore } from './tagStore'
 
 interface RepoState {
   repos: Repo[]
+  cacheGistId: string
   syncing: boolean
   syncProgress: string
   lastSynced: string
   classifying: boolean
-  setRepos: (repos: Repo[]) => void
+  activateCache: (gistId: string, previousGistId: string | null) => { repos: Repo[], exists: boolean }
+  setRepos: (repos: Repo[], persist?: boolean) => void
   setLastSynced: (lastSynced: string) => void
-  syncStarred: () => Promise<void>
+  syncStarred: (credentials?: SyncCredentials) => Promise<void>
   classifyAll: () => Promise<{ classified: number, tags: number, hasTopics: boolean }>
   toggleTag: (fullName: string, tagId: string) => void
   setNote: (fullName: string, note: string) => void
@@ -22,23 +25,30 @@ interface RepoState {
   removeTag: (fullName: string, tagId: string) => void
 }
 
-function saveCache(repos: Repo[]) {
-  localStorage.setItem('gsm_repo_cache', JSON.stringify(repos))
+export interface SyncCredentials {
+  pat: string
+  gistId: string
+  ownerLogin: string
 }
 
-function loadCache(): Repo[] {
+function saveCache(repos: Repo[], gistId: string) {
+  if (gistId)
+    localStorage.setItem(scopedCacheKey(REPO_CACHE_KEY, gistId), JSON.stringify(repos))
+}
+
+function loadCache(gistId: string): { repos: Repo[], exists: boolean } {
   try {
-    const raw = localStorage.getItem('gsm_repo_cache')
-    return raw ? JSON.parse(raw) : []
+    const raw = localStorage.getItem(scopedCacheKey(REPO_CACHE_KEY, gistId))
+    return { repos: raw ? JSON.parse(raw) : [], exists: raw !== null }
   }
   catch {
-    return []
+    return { repos: [], exists: false }
   }
 }
 
 async function persistMetadata(repos: Repo[], lastSynced: string) {
-  const { pat, gistId } = useAuthStore.getState()
-  if (!pat || !gistId)
+  const { pat, gistId, user } = useAuthStore.getState()
+  if (!pat || !gistId || !user)
     return
 
   const categories = useTagStore.getState().categories
@@ -47,6 +57,7 @@ async function persistMetadata(repos: Repo[], lastSynced: string) {
   await persistRepoSnapshot({
     repos,
     categories,
+    ownerLogin: user.login,
     lastSynced,
     totalStarred: activeRepos.length,
     gistId,
@@ -88,24 +99,37 @@ function buildRepoFromStarred(
 }
 
 export const useRepoStore = create<RepoState>((set, get) => ({
-  repos: loadCache(),
+  repos: [],
+  cacheGistId: '',
   syncing: false,
   syncProgress: '',
   lastSynced: '',
   classifying: false,
 
-  setRepos: (repos) => {
+  activateCache: (gistId, previousGistId) => {
+    migrateLegacyCache(localStorage, REPO_CACHE_KEY, gistId, previousGistId)
+    const cached = loadCache(gistId)
+    set({ cacheGistId: gistId, repos: cached.repos })
+    return cached
+  },
+  setRepos: (repos, persist = true) => {
     set({ repos })
-    saveCache(repos)
+    if (persist)
+      saveCache(repos, get().cacheGistId)
   },
   setLastSynced: lastSynced => set({ lastSynced }),
 
-  syncStarred: async () => {
-    const { pat, gistId } = useAuthStore.getState()
+  syncStarred: async (credentials) => {
+    const auth = useAuthStore.getState()
+    const pat = credentials?.pat ?? auth.pat
+    const gistId = credentials?.gistId ?? auth.gistId
+    const ownerLogin = credentials?.ownerLogin ?? auth.user?.login
     if (!pat)
       throw new Error('未设置 PAT')
     if (!gistId)
       throw new Error('未设置 Gist')
+    if (!ownerLogin)
+      throw new Error('未设置 GitHub 账号')
 
     set({ syncing: true, syncProgress: '正在拉取 Star 数据...' })
 
@@ -164,6 +188,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       await persistRepoSnapshot({
         repos: nextRepos,
         categories: useTagStore.getState().categories,
+        ownerLogin,
         lastSynced: now,
         totalStarred: updatedRepos.length,
         gistId,
@@ -171,7 +196,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       })
 
       set({ repos: nextRepos, lastSynced: now, syncing: false, syncProgress: '' })
-      saveCache(nextRepos)
+      saveCache(nextRepos, gistId)
     }
     catch (err) {
       set({ syncing: false, syncProgress: '' })
@@ -180,8 +205,8 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   },
 
   classifyAll: async () => {
-    const { pat, gistId } = useAuthStore.getState()
-    if (!pat || !gistId)
+    const { pat, gistId, user } = useAuthStore.getState()
+    if (!pat || !gistId || !user)
       throw new Error('未设置 PAT 或 Gist')
 
     const repos = get().repos
@@ -215,6 +240,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       await persistRepoSnapshot({
         repos: updatedRepos,
         categories: useTagStore.getState().categories,
+        ownerLogin: user.login,
         lastSynced: get().lastSynced,
         totalStarred: splitReposByTrash(updatedRepos).activeRepos.length,
         gistId,
@@ -222,7 +248,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       })
 
       set({ repos: updatedRepos, classifying: false })
-      saveCache(updatedRepos)
+      saveCache(updatedRepos, get().cacheGistId)
       return { classified: classifiedCount, tags: tagCount, hasTopics }
     }
     catch (err) {
@@ -238,7 +264,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           ? { ...repo, tags: repo.tags.includes(tagId) ? repo.tags.filter(tag => tag !== tagId) : [...repo.tags, tagId] }
           : repo,
       )
-      saveCache(updated)
+      saveCache(updated, state.cacheGistId)
       void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
@@ -251,7 +277,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           ? { ...repo, tags: [...repo.tags, tagId] }
           : repo,
       )
-      saveCache(updated)
+      saveCache(updated, state.cacheGistId)
       void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
@@ -264,7 +290,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           ? { ...repo, tags: repo.tags.filter(tag => tag !== tagId) }
           : repo,
       )
-      saveCache(updated)
+      saveCache(updated, state.cacheGistId)
       void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })
@@ -275,7 +301,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
       const updated = state.repos.map(repo =>
         repo.full_name === fullName ? { ...repo, note } : repo,
       )
-      saveCache(updated)
+      saveCache(updated, state.cacheGistId)
       void persistMetadata(updated, state.lastSynced)
       return { repos: updated }
     })

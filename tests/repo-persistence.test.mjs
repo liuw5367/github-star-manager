@@ -105,12 +105,16 @@ test('buildGistPayload serializes active repos, trash repos, and strips language
   const payload = buildGistPayload({
     repos,
     categories,
+    ownerLogin: 'octocat',
     lastSynced: '2026-06-03T00:00:00Z',
     totalStarred: 1,
   })
 
   assert.deepEqual(JSON.parse(payload['meta.json']), {
+    app: 'gitstars',
     version: 1,
+    owner_login: 'octocat',
+    initialized: true,
     last_synced: '2026-06-03T00:00:00Z',
     total_starred: 1,
   })
