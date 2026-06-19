@@ -1,4 +1,4 @@
-import type { Category, Repo } from '../types'
+import type { Category, Repo, Tag } from '../types'
 
 interface FilterArgs {
   repos: Repo[]
@@ -7,6 +7,7 @@ interface FilterArgs {
   sortBy: string
   sortDir: 'asc' | 'desc'
   searchQuery: string
+  retainedRepoNames?: string[]
 }
 
 export type RepoListEmptyState = 'no-data' | 'no-results' | 'empty-trash'
@@ -18,14 +19,16 @@ export function getFilteredRepos({
   sortBy,
   sortDir,
   searchQuery,
+  retainedRepoNames = [],
 }: FilterArgs): Repo[] {
   let filtered = [...repos]
+  const retainedNames = new Set(retainedRepoNames)
 
   if (activeFilter === 'trash') {
-    filtered = filtered.filter(repo => Boolean(repo.trashed_at))
+    filtered = filtered.filter(repo => Boolean(repo.trashed_at) || retainedNames.has(repo.full_name))
   }
   else {
-    filtered = filtered.filter(repo => !repo.trashed_at)
+    filtered = filtered.filter(repo => !repo.trashed_at || retainedNames.has(repo.full_name))
 
     if (activeFilter === 'untagged') {
       filtered = filtered.filter(repo => !repo.tags || repo.tags.length === 0)
@@ -108,4 +111,11 @@ export function shouldClearSelectedRepo(selectedRepo: string | null, filteredRep
   if (!selectedRepo)
     return false
   return !filteredRepos.some(repo => repo.full_name === selectedRepo)
+}
+
+export function sortTagsByRepoCount(tags: Tag[], repoCounts: Record<string, number>): Tag[] {
+  return [...tags].sort((left, right) =>
+    (repoCounts[right.id] || 0) - (repoCounts[left.id] || 0)
+    || left.order - right.order,
+  )
 }

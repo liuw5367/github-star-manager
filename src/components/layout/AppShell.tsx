@@ -36,6 +36,7 @@ export default function AppShell() {
   const mobileSidebarOpen = useUiStore(s => s.mobileSidebarOpen)
   const sidebarOpen = useUiStore(s => s.sidebarOpen)
   const showTagManager = useUiStore(s => s.showTagManager)
+  const retainedRepoNames = useUiStore(s => s.retainedRepoNames)
   const setMobileSidebarOpen = useUiStore(s => s.setMobileSidebarOpen)
   const setSidebarOpen = useUiStore(s => s.setSidebarOpen)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
@@ -69,11 +70,12 @@ export default function AppShell() {
       sortBy,
       sortDir,
       searchQuery,
+      retainedRepoNames,
     })
 
     if (shouldClearSelectedRepo(selectedRepo, filteredRepos))
       setSelectedRepo(null)
-  }, [repos, categories, activeFilter, sortBy, sortDir, searchQuery, selectedRepo, setSelectedRepo])
+  }, [repos, categories, activeFilter, sortBy, sortDir, searchQuery, retainedRepoNames, selectedRepo, setSelectedRepo])
 
   // Apply theme
   useEffect(() => {
@@ -106,7 +108,7 @@ export default function AppShell() {
         onClick={() => setMobileSidebarOpen(false)}
       />
       <div
-        className={`md:hidden fixed top-0 left-0 bottom-0 w-[280px] z-50 bg-gh-canvas border-r border-gh-border transform transition-transform duration-250 overflow-y-auto ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`md:hidden fixed top-0 left-0 bottom-0 w-[280px] z-50 bg-gh-canvas border-r border-gh-border transform transition-transform duration-250 overflow-hidden ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <CategoryNav />
       </div>

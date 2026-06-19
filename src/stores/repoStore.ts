@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import * as github from '../api/github'
 import { migrateLegacyCache, REPO_CACHE_KEY, scopedCacheKey } from '../lib/accountCache'
 import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
-import { persistRepoSnapshot, splitReposByTrash } from '../lib/repoPersistence'
+import { persistRepoSnapshot, splitReposByTrash, updateRepoStarState } from '../lib/repoPersistence'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
 
@@ -18,6 +18,7 @@ interface RepoState {
   setRepos: (repos: Repo[], persist?: boolean) => void
   setLastSynced: (lastSynced: string) => void
   syncStarred: (credentials?: SyncCredentials) => Promise<void>
+  setRepoStarred: (fullName: string, starred: boolean) => Promise<void>
   classifyAll: () => Promise<{ classified: number, tags: number, hasTopics: boolean }>
   toggleTag: (fullName: string, tagId: string) => void
   setNote: (fullName: string, note: string) => void
@@ -201,6 +202,31 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     catch (err) {
       set({ syncing: false, syncProgress: '' })
       throw err
+    }
+  },
+
+  setRepoStarred: async (fullName, starred) => {
+    const { pat } = useAuthStore.getState()
+    if (!pat)
+      throw new Error('未设置 PAT')
+
+    const repo = get().repos.find(item => item.full_name === fullName)
+    if (!repo)
+      throw new Error('仓库不存在')
+    if (Boolean(!repo.trashed_at) === starred)
+      return
+
+    await github.setRepoStarred(pat, fullName, starred)
+
+    const updated = updateRepoStarState(get().repos, fullName, starred, new Date().toISOString())
+    set({ repos: updated })
+    saveCache(updated, get().cacheGistId)
+
+    try {
+      await persistMetadata(updated, get().lastSynced)
+    }
+    catch {
+      throw new Error(`${starred ? '已恢复' : '已取消'} Star，但 Gist 保存失败；下次同步会重试`)
     }
   },
 

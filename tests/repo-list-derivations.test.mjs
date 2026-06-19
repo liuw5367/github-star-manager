@@ -5,6 +5,7 @@ import {
   getFilteredRepos,
   getRepoListEmptyState,
   shouldClearSelectedRepo,
+  sortTagsByRepoCount,
 } from '../src/lib/repoList.ts'
 
 const categories = [
@@ -107,4 +108,40 @@ test('shouldClearSelectedRepo clears when selected repo is no longer visible', (
     })),
     false,
   )
+})
+
+test('sortTagsByRepoCount orders by count and preserves configured order for ties', () => {
+  const tags = [
+    { id: 'low', name: 'Low', order: 0 },
+    { id: 'high-later', name: 'High later', order: 2 },
+    { id: 'high-first', name: 'High first', order: 1 },
+  ]
+
+  assert.deepEqual(
+    sortTagsByRepoCount(tags, { 'low': 1, 'high-later': 5, 'high-first': 5 }).map(tag => tag.id),
+    ['high-first', 'high-later', 'low'],
+  )
+  assert.deepEqual(tags.map(tag => tag.id), ['low', 'high-later', 'high-first'])
+})
+
+test('getFilteredRepos retains a mutated repository in its sorted position', () => {
+  const trashedRepos = repos.map(repo => repo.full_name === 'acme/active'
+    ? { ...repo, trashed_at: '2026-06-19T00:00:00Z' }
+    : repo)
+
+  const visible = getFilteredRepos({
+    repos: [
+      ...trashedRepos,
+      { ...repos[0], full_name: 'acme/newer', starred_at: '2026-06-02T00:00:00Z' },
+    ],
+    categories,
+    activeFilter: 'all',
+    sortBy: 'starred_at',
+    sortDir: 'desc',
+    searchQuery: '',
+    retainedRepoNames: ['acme/active'],
+  })
+
+  assert.deepEqual(visible.map(repo => repo.full_name), ['acme/newer', 'acme/active'])
+  assert.equal(visible[1].trashed_at, '2026-06-19T00:00:00Z')
 })

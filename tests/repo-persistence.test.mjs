@@ -6,6 +6,7 @@ import {
   mergeRemoteRepoData,
   reconcileReposWithCategories,
   splitReposByTrash,
+  updateRepoStarState,
 } from '../src/lib/repoPersistence.ts'
 
 test('mergeRemoteRepoData merges cached repos, remote tags/notes, and trash state', () => {
@@ -205,4 +206,33 @@ test('splitReposByTrash separates active and trashed repos', () => {
     activeRepos: [repos[0]],
     trashRepos: [repos[1]],
   })
+})
+
+test('updateRepoStarState moves a repository to trash without losing metadata', () => {
+  const repo = {
+    full_name: 'acme/widgets',
+    tags: ['tag_frontend'],
+    note: 'keep this',
+    trashed_at: null,
+  }
+
+  const updated = updateRepoStarState([repo], 'acme/widgets', false, '2026-06-19T00:00:00Z')
+
+  assert.deepEqual(updated[0], {
+    ...repo,
+    trashed_at: '2026-06-19T00:00:00Z',
+  })
+})
+
+test('updateRepoStarState restores a repository from trash', () => {
+  const repo = {
+    full_name: 'acme/widgets',
+    tags: [],
+    note: '',
+    trashed_at: '2026-06-19T00:00:00Z',
+  }
+
+  const updated = updateRepoStarState([repo], 'acme/widgets', true, 'unused')
+
+  assert.equal(updated[0].trashed_at, null)
 })

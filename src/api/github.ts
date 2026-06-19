@@ -111,6 +111,19 @@ export async function getStarred(
   return results
 }
 
+export async function setRepoStarred(pat: string, fullName: string, starred: boolean): Promise<void> {
+  const [owner, repo, ...rest] = fullName.split('/')
+  if (!owner || !repo || rest.length > 0)
+    throw new Error('仓库名称无效')
+
+  const res = await fetch(`${BASE}/user/starred/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+    method: starred ? 'PUT' : 'DELETE',
+    headers: headers(pat),
+  })
+  if (!res.ok)
+    throw new Error(`${starred ? '恢复' : '取消'} Star 失败 (${res.status})`)
+}
+
 export async function getReadme(pat: string, owner: string, repo: string): Promise<string> {
   const res = await fetch(`${BASE}/repos/${owner}/${repo}/readme`, {
     headers: {

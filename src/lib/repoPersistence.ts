@@ -57,6 +57,17 @@ export function splitReposByTrash(repos: Repo[]): { activeRepos: Repo[], trashRe
   }
 }
 
+export function updateRepoStarState(
+  repos: Repo[],
+  fullName: string,
+  starred: boolean,
+  trashedAt: string,
+): Repo[] {
+  return repos.map(repo => repo.full_name === fullName
+    ? { ...repo, trashed_at: starred ? null : trashedAt }
+    : repo)
+}
+
 export function mergeRemoteRepoData(
   { cachedRepos, tagMap, noteMap, trashMap }: { cachedRepos: Repo[] } & RemoteRepoMaps,
 ): Repo[] {

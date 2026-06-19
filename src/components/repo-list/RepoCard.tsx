@@ -4,6 +4,7 @@ import { AUTO_CAT_ID } from '../../lib/autoClassify'
 import { formatISODate, formatStars, getLanguageColor } from '../../lib/utils'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
+import { useUiStore } from '../../stores/uiStore'
 import { EditIcon, NoteIcon, StarIcon } from '../shared/Icons'
 import { TagPill } from '../shared/TagPill'
 import { RepoTagPicker } from './RepoTagPicker'
@@ -17,11 +18,31 @@ interface RepoCardProps {
 export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
   const categories = useTagStore(s => s.categories)
   const setNote = useRepoStore(s => s.setNote)
+  const setRepoStarred = useRepoStore(s => s.setRepoStarred)
+  const retainRepoInCurrentView = useUiStore(s => s.retainRepoInCurrentView)
+  const setToast = useUiStore(s => s.setToast)
   const [editingNote, setEditingNote] = useState(false)
   const [noteText, setNoteText] = useState(repo.note || '')
   const [showTagPicker, setShowTagPicker] = useState(false)
+  const [updatingStar, setUpdatingStar] = useState(false)
   const editTagBtnRef = useRef<HTMLButtonElement>(null)
   const tagAreaRef = useRef<HTMLDivElement>(null)
+  const isStarred = !repo.trashed_at
+
+  const handleStarToggle = async () => {
+    retainRepoInCurrentView(repo.full_name)
+    setUpdatingStar(true)
+    try {
+      await setRepoStarred(repo.full_name, !isStarred)
+      setToast({ message: isStarred ? '已取消 Star，可在回收站中恢复' : '已恢复 Star', type: 'success' })
+    }
+    catch (err) {
+      setToast({ message: err instanceof Error ? err.message : 'Star 操作失败', type: 'error' })
+    }
+    finally {
+      setUpdatingStar(false)
+    }
+  }
 
   const tagNames = (repo.tags || []).flatMap((tagId) => {
     for (const cat of categories) {
@@ -53,12 +74,16 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
-            onClick={(e) => { e.stopPropagation() }}
-            className="p-1.5 rounded hover:bg-gh-canvas-subtle transition-colors"
-            title="取消 Star"
+            onClick={(e) => {
+              e.stopPropagation()
+              void handleStarToggle()
+            }}
+            disabled={updatingStar}
+            className="p-1.5 rounded hover:bg-gh-canvas-subtle transition-colors disabled:opacity-50 disabled:cursor-wait"
+            title={isStarred ? '取消 Star' : '恢复 Star'}
             style={{ minWidth: 32, minHeight: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            <StarIcon filled size={14} />
+            <StarIcon filled={isStarred} size={14} />
           </button>
           <button
             ref={editTagBtnRef}

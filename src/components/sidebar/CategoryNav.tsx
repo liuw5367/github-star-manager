@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AUTO_CAT_ID } from '../../lib/autoClassify'
+import { sortTagsByRepoCount } from '../../lib/repoList'
 import { splitReposByTrash } from '../../lib/repoPersistence'
 import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
@@ -90,7 +91,33 @@ export function CategoryNav() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-shrink-0 py-1 border-b border-gh-border-muted">
+        <button
+          onClick={() => handleSelect('all')}
+          className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('all') ? 'bg-gh-accent/10 text-gh-accent font-medium' : 'text-gh-fg'}`}
+          style={{ borderRadius: 0 }}
+        >
+          <span className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className={isActive('all') ? 'text-gh-accent' : 'text-gh-fg-muted'}><path d="M1.5 1.75V13.5h13.25a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z" /></svg>
+            全部
+          </span>
+          <span className="text-xs text-gh-fg-muted">{totalRepos}</span>
+        </button>
+
+        <button
+          onClick={() => handleSelect('untagged')}
+          className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('untagged') ? 'bg-gh-accent/10 text-gh-accent font-medium' : 'text-gh-fg'}`}
+          style={{ borderRadius: 0 }}
+        >
+          <span className="flex items-center gap-2">
+            <TagManageIcon className={isActive('untagged') ? 'text-gh-accent' : 'text-gh-fg-muted'} />
+            未分类
+          </span>
+          <span className="text-xs text-gh-fg-muted">{untaggedCount}</span>
+        </button>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto py-1">
         {repos.length === 0
           ? (
               <div className="flex flex-col items-center justify-center py-12 text-gh-fg-muted">
@@ -101,95 +128,66 @@ export function CategoryNav() {
                 <p className="text-[10px] mt-0.5 opacity-50">同步后显示标签分类</p>
               </div>
             )
-          : (
-              <>
-                <button
-                  onClick={() => handleSelect('all')}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('all') ? 'bg-gh-accent text-white hover:bg-gh-accent-emphasis font-medium' : 'text-gh-fg'}`}
-                  style={{ borderRadius: 0 }}
-                >
-                  <span className="flex items-center gap-2">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className={isActive('all') ? 'text-white' : 'text-gh-fg-muted'}><path d="M1.5 1.75V13.5h13.25a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z" /></svg>
-                    全部
-                  </span>
-                  <span className={`text-xs ${isActive('all') ? 'text-white/70' : 'text-gh-fg-muted'}`}>{totalRepos}</span>
-                </button>
+          : categories.map((cat) => {
+              const isOpen = !collapsedCats.includes(cat.id)
+              const catRepoCount = cat.tags.reduce((sum, tag) => sum + (repoCounts[tag.id] || 0), 0)
+              const sortedTags = sortTagsByRepoCount(cat.tags, repoCounts)
+              return (
+                <div key={cat.id}>
+                  <button
+                    onClick={() => {
+                      toggleCat(cat.id)
+                      handleSelect(`cat:${cat.id}`)
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${activeFilter === `cat:${cat.id}` ? 'bg-gh-accent/10 text-gh-accent font-medium' : 'text-gh-fg'}`}
+                    style={{ borderRadius: 0 }}
+                  >
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <ChevronIcon open={isOpen} />
+                      <span className="truncate text-xs">{cat.name}</span>
+                    </span>
+                    <span className="text-xs text-gh-fg-muted flex-shrink-0">{catRepoCount}</span>
+                  </button>
+                  {isOpen && sortedTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleSelect(`tag:${tag.id}`)}
+                      className={`w-full flex items-center justify-between pl-8 pr-3 py-1 text-sm transition-colors ${activeFilter === `tag:${tag.id}` ? 'bg-gh-accent/10 text-gh-accent font-medium' : 'hover:bg-gh-canvas text-gh-fg'}`}
+                      style={{ borderRadius: 0 }}
+                    >
+                      <span className="truncate text-xs">{tag.name}</span>
+                      <span className="text-xs text-gh-fg-muted flex-shrink-0">{repoCounts[tag.id] || 0}</span>
+                    </button>
+                  ))}
+                </div>
+              )
+            })}
+      </div>
 
-                <button
-                  onClick={() => handleSelect('untagged')}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${isActive('untagged') ? 'bg-gh-accent text-white hover:bg-gh-accent-emphasis font-medium' : 'text-gh-fg'}`}
-                  style={{ borderRadius: 0 }}
-                >
-                  <span className="flex items-center gap-2">
-                    <TagManageIcon />
-                    未分类
-                  </span>
-                  <span className={`text-xs ${isActive('untagged') ? 'text-white/70' : 'text-gh-fg-muted'}`}>{untaggedCount}</span>
-                </button>
+      <div className="flex-shrink-0 py-1 border-t border-gh-border-muted">
+        <button
+          onClick={handleClassify}
+          disabled={classifying || activeRepos.length === 0}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gh-fg-muted hover:text-gh-fg hover:bg-gh-canvas transition-colors disabled:opacity-50"
+          style={{ borderRadius: 0 }}
+        >
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" className={classifying ? 'animate-spin' : ''}>
+            <path d="M2 8a6 6 0 0 1 10.47-4" />
+            <path d="M14 8a6 6 0 0 1-10.47 4" />
+            <path d="M13.5 1.5V5h-3.5" />
+            <path d="M2.5 14.5V11H6" />
+          </svg>
+          {classifying ? '分类中...' : '自动分类'}
+        </button>
 
-                <div className="h-px bg-gh-border-muted my-1" />
-
-                {categories.map((cat) => {
-                  const isOpen = !collapsedCats.includes(cat.id)
-                  const catRepoCount = cat.tags.reduce((sum, t) => sum + (repoCounts[t.id] || 0), 0)
-                  return (
-                    <div key={cat.id}>
-                      <button
-                        onClick={() => {
-                          toggleCat(cat.id)
-                          handleSelect(`cat:${cat.id}`)
-                        }}
-                        className={`w-full flex items-center justify-between px-3 py-1.5 text-sm hover:bg-gh-canvas transition-colors ${activeFilter === `cat:${cat.id}` ? 'bg-gh-canvas font-semibold text-gh-fg' : 'text-gh-fg'}`}
-                        style={{ borderRadius: 0 }}
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <ChevronIcon open={isOpen} />
-                          <span className="truncate text-xs">{cat.name}</span>
-                        </span>
-                        <span className="text-xs text-gh-fg-muted flex-shrink-0">{catRepoCount}</span>
-                      </button>
-                      {isOpen && cat.tags.map(tag => (
-                        <button
-                          key={tag.id}
-                          onClick={() => handleSelect(`tag:${tag.id}`)}
-                          className={`w-full flex items-center justify-between pl-8 pr-3 py-1 text-sm transition-colors ${activeFilter === `tag:${tag.id}` ? 'bg-gh-accent text-white hover:bg-gh-accent-emphasis font-medium' : 'hover:bg-gh-canvas text-gh-fg'}`}
-                          style={{ borderRadius: 0 }}
-                        >
-                          <span className="truncate text-xs">{tag.name}</span>
-                          <span className={`text-xs flex-shrink-0 ${activeFilter === `tag:${tag.id}` ? 'text-white/70' : 'text-gh-fg-muted'}`}>{repoCounts[tag.id] || 0}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )
-                })}
-
-                <div className="h-px bg-gh-border-muted my-1" />
-
-                <button
-                  onClick={handleClassify}
-                  disabled={classifying}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gh-accent hover:bg-gh-accent/10 transition-colors disabled:opacity-50"
-                  style={{ borderRadius: 0 }}
-                >
-                  <svg width={14} height={14} viewBox="0 0 16 16" fill="currentColor" className={classifying ? 'animate-spin' : ''}>
-                    <path d="M2 8a6 6 0 0 1 10.47-4" />
-                    <path d="M14 8a6 6 0 0 1-10.47 4" />
-                    <path d="M13.5 1.5V5h-3.5" />
-                    <path d="M2.5 14.5V11H6" />
-                  </svg>
-                  {classifying ? '分类中...' : '自动分类'}
-                </button>
-
-                <button
-                  onClick={() => setShowTagManager(true)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gh-fg-muted hover:text-gh-accent hover:bg-gh-canvas transition-colors"
-                  style={{ borderRadius: 0 }}
-                >
-                  <TagManageIcon />
-                  管理标签...
-                </button>
-              </>
-            )}
+        <button
+          onClick={() => setShowTagManager(true)}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gh-fg-muted hover:text-gh-fg hover:bg-gh-canvas transition-colors"
+          style={{ borderRadius: 0 }}
+        >
+          <TagManageIcon />
+          管理标签...
+        </button>
       </div>
 
       <div className="flex-shrink-0 border-t border-gh-border-muted px-3 py-1.5">

@@ -17,6 +17,7 @@ export function RepoList() {
   const sortBy = useUiStore(s => s.sortBy)
   const sortDir = useUiStore(s => s.sortDir)
   const searchQuery = useUiStore(s => s.searchQuery)
+  const retainedRepoNames = useUiStore(s => s.retainedRepoNames)
 
   const filteredRepos = useMemo(() => getFilteredRepos({
     repos,
@@ -25,7 +26,8 @@ export function RepoList() {
     sortBy,
     sortDir,
     searchQuery,
-  }), [repos, categories, activeFilter, sortBy, sortDir, searchQuery])
+    retainedRepoNames,
+  }), [repos, categories, activeFilter, sortBy, sortDir, searchQuery, retainedRepoNames])
   const emptyState = getRepoListEmptyState({
     repos,
     filteredRepos,
