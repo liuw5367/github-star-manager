@@ -42,7 +42,7 @@ export default function AppShell() {
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
   const theme = useUiStore(s => s.theme)
 
-  const [sidebarWidth, setSidebarWidth] = useState(() => loadWidth('gsm_sidebar_width', 200))
+  const [sidebarWidth, setSidebarWidth] = useState(() => loadWidth('gsm_sidebar_width', 220))
   const [repoListWidth, setRepoListWidth] = useState(() => loadWidth('gsm_list_width', 360))
 
   const updateSidebar = useCallback((delta: number) => {

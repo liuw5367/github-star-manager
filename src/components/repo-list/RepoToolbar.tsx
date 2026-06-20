@@ -125,7 +125,7 @@ export function RepoToolbar() {
           <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
           <input
             type="text"
-            placeholder="搜索名称、描述、topics、标签、备注或语言..."
+            placeholder="请输入要搜索的内容..."
             className="gh-input text-ui-body h-9 md:h-8"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
