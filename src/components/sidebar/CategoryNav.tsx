@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { DERIVED_AUTO_CAT_ID, DERIVED_LANGUAGE_CAT_ID, getDerivedCategories, repoMatchesFilter, sortTagsByRepoCount } from '../../lib/repoList'
 import { splitReposByTrash } from '../../lib/repoPersistence'
+import { formatLastSynced } from '../../lib/utils'
 import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
@@ -10,6 +11,7 @@ import { ThemeToggle } from '../shared/ThemeToggle'
 
 export function CategoryNav() {
   const repos = useRepoStore(s => s.repos)
+  const lastSynced = useRepoStore(s => s.lastSynced)
   const categories = useTagStore(s => s.categories)
   const activeFilter = useUiStore(s => s.activeFilter)
   const collapsedCats = useUiStore(s => s.collapsedCats)
@@ -49,7 +51,14 @@ export function CategoryNav() {
         {user && (
           <div className="flex items-center gap-2">
             <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border flex-shrink-0" />
-            <span className="text-ui-caption font-medium text-gh-fg truncate min-w-0 flex-1">{user.login}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-ui-caption font-medium text-gh-fg truncate">{user.login}</div>
+              {lastSynced && (
+                <div className="text-ui-caption text-gh-fg-muted truncate">
+                  {formatLastSynced(lastSynced)}
+                </div>
+              )}
+            </div>
             <button onClick={logout} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted hover:text-gh-danger flex-shrink-0" title="退出登录">
               <LogoutIcon />
             </button>
@@ -129,9 +138,9 @@ export function CategoryNav() {
       </div>
 
       <div className="flex-shrink-0 py-1 border-t border-gh-border-muted">
-        <button onClick={() => setShowTagManager(true)} className="w-full flex items-center gap-2 px-3 py-1.5 text-ui-caption text-gh-fg-muted hover:text-gh-fg hover:bg-gh-canvas transition-colors" style={{ borderRadius: 0 }}>
+        <button onClick={() => setShowTagManager(true)} className="w-full flex items-center gap-2 px-3 py-1.5 text-ui-body text-gh-fg-muted hover:text-gh-fg hover:bg-gh-canvas transition-colors" style={{ borderRadius: 0 }}>
           <TagManageIcon />
-          管理标签...
+          管理标签
         </button>
       </div>
 

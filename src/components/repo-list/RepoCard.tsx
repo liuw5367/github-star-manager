@@ -68,6 +68,10 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
           <span className="text-ui-body font-semibold text-gh-accent truncate block">
             {repo.full_name}
           </span>
+          <span className="flex items-center gap-0.5 text-ui-caption text-gh-fg-muted flex-shrink-0">
+            <StarIcon size={12} />
+            {formatStars(repo.stargazers_count)}
+          </span>
           <a
             href={`https://github.com/${repo.full_name}`}
             target="_blank"
@@ -79,10 +83,6 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
           >
             <ExternalIcon />
           </a>
-          <span className="flex items-center gap-0.5 text-ui-caption text-gh-fg-muted flex-shrink-0">
-            <StarIcon size={12} />
-            {formatStars(repo.stargazers_count)}
-          </span>
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
@@ -126,7 +126,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
 
       {repo.description && (
         <p
-          className="text-ui-caption text-gh-fg-muted leading-relaxed mb-2"
+          className="text-ui-body text-gh-fg-muted leading-relaxed mb-2"
           title={repo.description}
           style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
         >

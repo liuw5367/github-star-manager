@@ -18,6 +18,10 @@ export function formatISODate(iso: string): string {
   return `${yr}-${mo}-${dd} ${hh}:${mm}:${ss}`
 }
 
+export function formatLastSynced(lastSynced: string): string {
+  return formatISODate(lastSynced)
+}
+
 export function getLanguageColor(lang: string | null): string {
   const colors: Record<string, string> = {
     'JavaScript': '#f1e05a',

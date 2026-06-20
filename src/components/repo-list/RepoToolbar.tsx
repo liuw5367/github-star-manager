@@ -1,13 +1,11 @@
 import { useMemo } from 'react'
 import { splitReposByTrash } from '../../lib/repoPersistence'
-import { formatISODate } from '../../lib/utils'
 import { useRepoStore } from '../../stores/repoStore'
 import { useUiStore } from '../../stores/uiStore'
 import { HamburgerIcon, SearchIcon, SyncIcon } from '../shared/Icons'
 
 export function RepoToolbar() {
   const repos = useRepoStore(s => s.repos)
-  const lastSynced = useRepoStore(s => s.lastSynced)
   const syncing = useRepoStore(s => s.syncing)
   const syncProgress = useRepoStore(s => s.syncProgress)
   const syncStarred = useRepoStore(s => s.syncStarred)
@@ -52,7 +50,7 @@ export function RepoToolbar() {
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0 min-h-12 md:min-h-10">
+      <div className="flex items-center flex-wrap justify-between px-3 py-2 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0 min-h-12 md:min-h-10">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -79,9 +77,6 @@ export function RepoToolbar() {
             <SyncIcon spinning={syncing} />
             <span className="hidden sm:inline">{syncing ? syncProgress || '同步中...' : '同步'}</span>
           </button>
-          <span className="hidden lg:inline text-ui-caption text-gh-fg-muted">
-            {lastSynced ? `上次同步 ${formatISODate(lastSynced)}` : '尚未同步'}
-          </span>
         </div>
         <div className="flex items-center gap-2">
           <select
