@@ -16,7 +16,7 @@ export function ThemeToggle() {
         <button
           key={opt.value}
           onClick={() => setTheme(opt.value)}
-          className={`flex items-center justify-center px-2 py-1 text-xs transition-colors ${
+          className={`flex items-center justify-center px-2 py-1 text-ui-caption transition-colors ${
             i === 0 ? 'rounded-l-md' : i === options.length - 1 ? 'rounded-r-md' : ''
           } ${
             theme === opt.value

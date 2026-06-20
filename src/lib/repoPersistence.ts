@@ -41,12 +41,24 @@ function toRepoBase(fullName: string, repo?: Partial<Repo>): Repo {
   }
 }
 
-function getLanguageTags(tags: string[]): string[] {
-  return tags.filter(tagId => tagId.startsWith('tag_lang_'))
+function isDerivedTag(tagId: string): boolean {
+  return tagId.startsWith('tag_lang_') || tagId.startsWith('tag_auto_')
 }
 
-function getUserTags(tags: string[]): string[] {
-  return tags.filter(tagId => !tagId.startsWith('tag_lang_'))
+export function getUserTags(tags: string[]): string[] {
+  return tags.filter(tagId => !isDerivedTag(tagId))
+}
+
+function isUserCategory(category: Category): boolean {
+  return category.id !== 'cat_language' && category.id !== 'cat_auto_classify'
+}
+
+export function getUserCategories(categories: Category[]): Category[] {
+  return categories.filter(isUserCategory)
+}
+
+export function stripDerivedRepoTags(repos: Repo[]): Repo[] {
+  return repos.map(repo => ({ ...repo, tags: getUserTags(repo.tags || []) }))
 }
 
 export function parseGistJson<T>(raw: string, fallback: T): T {
@@ -98,7 +110,7 @@ export function mergeRemoteRepoData(
     if (trashed) {
       merged.push({
         ...toRepoBase(fullName, cached),
-        tags: trashed.tags,
+        tags: getUserTags(trashed.tags),
         note: trashed.note,
         trashed_at: trashed.trashed_at,
       })
@@ -108,7 +120,7 @@ export function mergeRemoteRepoData(
     const cachedRepo = toRepoBase(fullName, cached)
     merged.push({
       ...cachedRepo,
-      tags: [...getLanguageTags(cachedRepo.tags), ...(tagMap[fullName] ?? getUserTags(cachedRepo.tags))],
+      tags: getUserTags(tagMap[fullName] ?? cachedRepo.tags),
       note: noteMap[fullName] ?? cachedRepo.note,
       trashed_at: null,
     })
@@ -129,7 +141,7 @@ export function hydrateGistFiles(files: GistFiles, cachedRepos: Repo[]): {
   const trashMap = parseGistJson(files['trash.json'], {} as Record<string, TrashItem>)
 
   return {
-    categories: categories.categories ?? [],
+    categories: getUserCategories(categories.categories ?? []),
     lastSynced: meta.last_synced ?? '',
     repos: mergeRemoteRepoData({ cachedRepos, tagMap, noteMap, trashMap }),
   }
@@ -138,7 +150,7 @@ export function hydrateGistFiles(files: GistFiles, cachedRepos: Repo[]): {
 export function reconcileReposWithCategories(repos: Repo[], categories: Category[]): Repo[] {
   const validUserTags = new Set(
     categories
-      .filter(category => category.id !== 'cat_language')
+      .filter(isUserCategory)
       .flatMap(category => category.tags.map(tag => tag.id)),
   )
 
@@ -146,14 +158,14 @@ export function reconcileReposWithCategories(repos: Repo[], categories: Category
     const keptUserTags = getUserTags(repo.tags).filter(tagId => validUserTags.has(tagId))
     return {
       ...repo,
-      tags: [...getLanguageTags(repo.tags), ...keptUserTags],
+      tags: keptUserTags,
     }
   })
 }
 
 export function buildGistPayload({ repos, categories, ownerLogin, lastSynced, totalStarred }: GistPayloadArgs): GistFiles {
   const { activeRepos, trashRepos } = splitReposByTrash(repos)
-  const userCategories = categories.filter(category => category.id !== 'cat_language')
+  const userCategories = getUserCategories(categories)
 
   const tagMap: Record<string, string[]> = {}
   const noteMap: Record<string, string> = {}
@@ -169,7 +181,7 @@ export function buildGistPayload({ repos, categories, ownerLogin, lastSynced, to
 
   for (const repo of trashRepos) {
     trashMap[repo.full_name] = {
-      tags: repo.tags,
+      tags: getUserTags(repo.tags),
       note: repo.note,
       trashed_at: repo.trashed_at || '',
     }

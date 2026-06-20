@@ -86,7 +86,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
           <input
             type="text"
             placeholder="搜索标签..."
-            className="gh-input text-xs"
+            className="gh-input text-ui-caption"
             style={{ height: 28, paddingLeft: 28 }}
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -98,13 +98,13 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
       <div className="flex-1 overflow-y-auto p-1" style={{ maxHeight: 280 }}>
         {filteredCats.map(cat => (
           <div key={cat.id} className="mb-1">
-            <div className="px-2 py-1 text-xs font-medium text-gh-fg-muted/60 uppercase tracking-wide">{cat.name}</div>
+            <div className="px-2 py-1 text-ui-caption font-medium text-gh-fg-muted/60 uppercase tracking-wide">{cat.name}</div>
             {cat.tags.map((tag) => {
               const checked = repoTagSet.has(tag.id)
               return (
                 <div
                   key={tag.id}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-gh-canvas transition-colors text-sm"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-gh-canvas transition-colors text-ui-body"
                   onClick={() => toggleTag(repo.full_name, tag.id)}
                 >
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? 'bg-gh-accent border-gh-accent' : 'border-gh-border bg-white dark:bg-gh-canvas'}`}>
@@ -117,7 +117,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
           </div>
         ))}
         {filteredCats.length === 0 && (
-          <p className="text-xs text-gh-fg-muted text-center py-4">没有匹配的标签</p>
+          <p className="text-ui-caption text-gh-fg-muted text-center py-4">没有匹配的标签</p>
         )}
       </div>
 
@@ -125,7 +125,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
         ? (
             <div className="p-2 border-t border-gh-border-muted space-y-2">
               <select
-                className="gh-select text-xs w-full"
+                className="gh-select text-ui-caption w-full"
                 value={newTagCat}
                 onChange={e => setNewTagCat(e.target.value)}
                 style={{ minHeight: 28 }}
@@ -137,7 +137,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
               </select>
               <div className="flex items-center gap-1">
                 <input
-                  className="gh-input text-xs flex-1"
+                  className="gh-input text-ui-caption flex-1"
                   style={{ height: 28, padding: '2px 8px' }}
                   placeholder="新标签名称..."
                   value={newTagName}
@@ -147,8 +147,8 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
                       handleCreate()
                   }}
                 />
-                <button onClick={handleCreate} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '3px 10px', fontSize: 11 }}>创建</button>
-                <button onClick={() => setShowCreate(false)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '3px 10px', fontSize: 11 }}>取消</button>
+                <button onClick={handleCreate} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '3px 10px' }}>创建</button>
+                <button onClick={() => setShowCreate(false)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '3px 10px' }}>取消</button>
               </div>
             </div>
           )
@@ -159,7 +159,7 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
                   setShowCreate(true)
                   setNewTagCat(categories[0]?.id || '')
                 }}
-                className="flex items-center gap-1.5 w-full px-2 py-1.5 text-xs text-gh-accent hover:bg-gh-accent/5 rounded transition-colors"
+                className="flex items-center gap-1.5 w-full px-2 py-1.5 text-ui-caption text-gh-accent hover:bg-gh-accent/5 rounded transition-colors"
               >
                 <PlusIcon />
                 {' '}

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  getDerivedCategories,
   getFilteredRepos,
   getRepoListEmptyState,
   shouldClearSelectedRepo,
@@ -22,7 +23,7 @@ const repos = [
     updated_at: '2026-06-01T00:00:00Z',
     starred_at: '2026-06-01T00:00:00Z',
     tags: ['tag_frontend'],
-    note: '',
+    note: 'component reference',
     trashed_at: null,
   },
   {
@@ -122,6 +123,61 @@ test('sortTagsByRepoCount orders by count and preserves configured order for tie
     ['high-first', 'high-later', 'low'],
   )
   assert.deepEqual(tags.map(tag => tag.id), ['low', 'high-later', 'high-first'])
+})
+
+test('getFilteredRepos searches repository topics, notes, language, and user tag names', () => {
+  for (const query of ['ui', 'reference', 'typescript', 'frontend']) {
+    const filtered = getFilteredRepos({
+      repos,
+      categories,
+      activeFilter: 'all',
+      sortBy: 'full_name',
+      sortDir: 'asc',
+      searchQuery: query,
+    })
+
+    assert.deepEqual(filtered.map(repo => repo.full_name), ['acme/active'])
+  }
+})
+
+test('getDerivedCategories computes language and automatic topic categories from current repos', () => {
+  const derived = getDerivedCategories([
+    ...repos,
+    {
+      ...repos[0],
+      full_name: 'acme/rust-tools',
+      language: 'Rust',
+      topics: ['cli'],
+      tags: [],
+    },
+  ])
+
+  assert.deepEqual(derived.map(category => category.id), ['derived:language', 'derived:auto'])
+  assert.deepEqual(derived[0].tags.map(tag => tag.name), ['Rust', 'TypeScript'])
+  assert.ok(derived[1].tags.some(tag => tag.name === 'ui'))
+  assert.ok(derived[1].tags.some(tag => tag.name === 'cli'))
+})
+
+test('getFilteredRepos filters derived languages and automatic topics without stored tags', () => {
+  const byLanguage = getFilteredRepos({
+    repos,
+    categories,
+    activeFilter: 'lang:TypeScript',
+    sortBy: 'full_name',
+    sortDir: 'asc',
+    searchQuery: '',
+  })
+  const byTopic = getFilteredRepos({
+    repos,
+    categories,
+    activeFilter: 'topic:ui',
+    sortBy: 'full_name',
+    sortDir: 'asc',
+    searchQuery: '',
+  })
+
+  assert.deepEqual(byLanguage.map(repo => repo.full_name), ['acme/active'])
+  assert.deepEqual(byTopic.map(repo => repo.full_name), ['acme/active'])
 })
 
 test('getFilteredRepos retains a mutated repository in its sorted position', () => {

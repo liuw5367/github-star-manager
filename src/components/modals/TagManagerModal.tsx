@@ -105,7 +105,7 @@ export function TagManagerModal() {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gh-border-muted">
-          <h3 className="text-sm font-semibold text-gh-fg">管理标签</h3>
+          <h3 className="text-ui-body font-semibold text-gh-fg">管理标签</h3>
           <button onClick={() => setShowTagManager(false)} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted">
             <CloseIcon />
           </button>
@@ -115,7 +115,7 @@ export function TagManagerModal() {
           {localCats.map(cat => (
             <div key={cat.id} className="border border-gh-border-muted rounded-lg overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 bg-gh-canvas/50 border-b border-gh-border-muted">
-                <span className="text-xs font-semibold text-gh-fg">{cat.name}</span>
+                <span className="text-ui-caption font-semibold text-gh-fg">{cat.name}</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => {
@@ -139,7 +139,7 @@ export function TagManagerModal() {
 
               <div className="p-2 space-y-0.5">
                 {cat.tags.length === 0 && (
-                  <p className="text-xs text-gh-fg-muted/50 px-2 py-1">暂无标签</p>
+                  <p className="text-ui-caption text-gh-fg-muted/50 px-2 py-1">暂无标签</p>
                 )}
                 {cat.tags.map(tag => (
                   <div key={tag.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gh-canvas/60 group">
@@ -147,7 +147,7 @@ export function TagManagerModal() {
                       ? (
                           <div className="flex items-center gap-1 flex-1">
                             <input
-                              className="gh-input text-xs flex-1"
+                              className="gh-input text-ui-caption flex-1"
                               style={{ height: 26, padding: '2px 8px' }}
                               value={editingTagName}
                               onChange={e => setEditingTagName(e.target.value)}
@@ -159,14 +159,14 @@ export function TagManagerModal() {
                               }}
                               autoFocus
                             />
-                            <button onClick={() => handleSaveTagName(cat.id, tag.id)} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>保存</button>
-                            <button onClick={() => setEditingTagId(null)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>取消</button>
+                            <button onClick={() => handleSaveTagName(cat.id, tag.id)} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '2px 8px' }}>保存</button>
+                            <button onClick={() => setEditingTagId(null)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '2px 8px' }}>取消</button>
                           </div>
                         )
                       : (
                           <>
-                            <span className="text-xs text-gh-fg flex-1">{tag.name}</span>
-                            <span className="text-xs text-gh-fg-muted/40 font-mono">{tag.id}</span>
+                            <span className="text-ui-caption text-gh-fg flex-1">{tag.name}</span>
+                            <span className="text-ui-caption text-gh-fg-muted/40 font-mono">{tag.id}</span>
                             <button
                               onClick={() => {
                                 setEditingTagId(tag.id)
@@ -192,7 +192,7 @@ export function TagManagerModal() {
                 {newTagTargetCat === cat.id && (
                   <div className="flex items-center gap-1 px-2 py-1 mt-1 border-t border-gh-border-muted/50">
                     <input
-                      className="gh-input text-xs flex-1"
+                      className="gh-input text-ui-caption flex-1"
                       style={{ height: 26, padding: '2px 8px' }}
                       placeholder="新标签名称..."
                       value={newTagName}
@@ -205,8 +205,8 @@ export function TagManagerModal() {
                       }}
                       autoFocus
                     />
-                    <button onClick={() => handleAddTag(cat.id)} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>添加</button>
-                    <button onClick={() => setNewTagTargetCat(null)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '2px 8px', fontSize: 11 }}>取消</button>
+                    <button onClick={() => handleAddTag(cat.id)} className="gh-btn gh-btn-primary gh-btn-sm" style={{ padding: '2px 8px' }}>添加</button>
+                    <button onClick={() => setNewTagTargetCat(null)} className="gh-btn gh-btn-default gh-btn-sm" style={{ padding: '2px 8px' }}>取消</button>
                   </div>
                 )}
               </div>
@@ -217,7 +217,7 @@ export function TagManagerModal() {
             ? (
                 <div className="flex items-center gap-2 p-2 border border-gh-border-muted rounded-lg">
                   <input
-                    className="gh-input text-xs flex-1"
+                    className="gh-input text-ui-caption flex-1"
                     style={{ height: 28, padding: '2px 8px' }}
                     placeholder="分类名称..."
                     value={newCatName}
@@ -237,7 +237,7 @@ export function TagManagerModal() {
             : (
                 <button
                   onClick={() => setShowNewCat(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gh-border rounded-lg text-xs text-gh-fg-muted hover:text-gh-accent hover:border-gh-accent transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 border border-dashed border-gh-border rounded-lg text-ui-caption text-gh-fg-muted hover:text-gh-accent hover:border-gh-accent transition-colors"
                 >
                   <PlusIcon />
                   {' '}

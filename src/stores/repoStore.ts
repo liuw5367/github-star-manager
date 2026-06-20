@@ -3,8 +3,7 @@ import { create } from 'zustand'
 import * as gist from '../api/gist'
 import * as github from '../api/github'
 import { loadAccountSnapshot, migrateLegacyCache, REPO_CACHE_KEY, scopedCacheKey, shouldPullCloudBeforeSync } from '../lib/accountCache'
-import { AUTO_CAT_ID, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
-import { hydrateGistFiles, persistRepoSnapshot, splitReposByTrash, updateRepoStarState } from '../lib/repoPersistence'
+import { hydrateGistFiles, persistRepoSnapshot, splitReposByTrash, stripDerivedRepoTags, updateRepoStarState } from '../lib/repoPersistence'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
 
@@ -14,13 +13,11 @@ interface RepoState {
   syncing: boolean
   syncProgress: string
   lastSynced: string
-  classifying: boolean
   activateCache: (gistId: string, previousGistId: string | null) => { repos: Repo[], exists: boolean }
   setRepos: (repos: Repo[], persist?: boolean) => void
   setLastSynced: (lastSynced: string) => void
   syncStarred: (credentials?: SyncCredentials) => Promise<void>
   setRepoStarred: (fullName: string, starred: boolean) => Promise<void>
-  classifyAll: () => Promise<{ classified: number, tags: number, hasTopics: boolean }>
   toggleTag: (fullName: string, tagId: string) => void
   setNote: (fullName: string, note: string) => void
   addTag: (fullName: string, tagId: string) => void
@@ -70,20 +67,8 @@ async function persistMetadata(repos: Repo[], lastSynced: string) {
 function buildRepoFromStarred(
   starredRepo: github.StarredRepo,
   oldRepo: Repo | undefined,
-  ensureLanguageTag: (language: string) => string,
-  autoTagIds: Set<string>,
 ): Repo {
-  const tags = oldRepo?.tags.filter(tag => !tag.startsWith('tag_lang_')) ?? []
-
-  if (starredRepo.language) {
-    tags.unshift(ensureLanguageTag(starredRepo.language))
-  }
-
-  for (const topic of starredRepo.topics || []) {
-    const tagId = tagIdFromTopic(topic)
-    if (autoTagIds.has(tagId) && !tags.includes(tagId))
-      tags.push(tagId)
-  }
+  const tags = oldRepo?.tags.filter(tag => !tag.startsWith('tag_lang_') && !tag.startsWith('tag_auto_')) ?? []
 
   return {
     ...oldRepo,
@@ -106,18 +91,19 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   syncing: false,
   syncProgress: '',
   lastSynced: '',
-  classifying: false,
 
   activateCache: (gistId, previousGistId) => {
     migrateLegacyCache(localStorage, REPO_CACHE_KEY, gistId, previousGistId)
     const cached = loadCache(gistId)
-    set({ cacheGistId: gistId, repos: cached.repos })
-    return cached
+    const repos = stripDerivedRepoTags(cached.repos)
+    set({ cacheGistId: gistId, repos })
+    return { ...cached, repos }
   },
   setRepos: (repos, persist = true) => {
-    set({ repos })
+    const normalizedRepos = stripDerivedRepoTags(repos)
+    set({ repos: normalizedRepos })
     if (persist)
-      saveCache(repos, get().cacheGistId)
+      saveCache(normalizedRepos, get().cacheGistId)
   },
   setLastSynced: lastSynced => set({ lastSynced }),
 
@@ -154,7 +140,6 @@ export const useRepoStore = create<RepoState>((set, get) => ({
 
       const existing = get().repos
       const { activeRepos: existingActiveRepos, trashRepos: existingTrashRepos } = splitReposByTrash(existing)
-      const existingNames = new Set(existingActiveRepos.map(repo => repo.full_name))
       const starredNames = new Set(starredRepos.map(repo => repo.full_name))
       const removedNames = new Set(
         existingActiveRepos
@@ -162,27 +147,9 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           .map(repo => repo.full_name),
       )
 
-      const { ensureLanguageTag } = useTagStore.getState()
-      const tagState = useTagStore.getState()
-      const autoCat = tagState.categories.find(category => category.id === AUTO_CAT_ID)
-      let autoTagIds = new Set<string>()
-
-      if (!autoCat && starredRepos.some(repo => !existingNames.has(repo.full_name))) {
-        const topTopics = getTopTopics(starredRepos.map(repo => ({ full_name: repo.full_name, topics: repo.topics || [] })) as Repo[])
-        tagState.ensureAutoCategory()
-        for (const topic of topTopics) {
-          const tagId = tagIdFromTopic(topic)
-          tagState.ensureAutoTag(tagId, topic)
-          autoTagIds.add(tagId)
-        }
-      }
-      else if (autoCat) {
-        autoTagIds = new Set(autoCat.tags.map(tag => tag.id))
-      }
-
       const existingMap = new Map(existing.map(repo => [repo.full_name, repo]))
       const updatedRepos = starredRepos.map(repo =>
-        buildRepoFromStarred(repo, existingMap.get(repo.full_name), ensureLanguageTag, autoTagIds),
+        buildRepoFromStarred(repo, existingMap.get(repo.full_name)),
       )
 
       const now = new Date().toISOString()
@@ -238,59 +205,6 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     }
     catch {
       throw new Error(`${starred ? '已恢复' : '已取消'} Star，但 Gist 保存失败；下次同步会重试`)
-    }
-  },
-
-  classifyAll: async () => {
-    const { pat, gistId, user } = useAuthStore.getState()
-    if (!pat || !gistId || !user)
-      throw new Error('未设置 PAT 或 Gist')
-
-    const repos = get().repos
-    const tagStore = useTagStore.getState()
-
-    set({ classifying: true })
-
-    try {
-      const autoTagIds = tagStore.syncAutoTags(repos)
-      let classifiedCount = 0
-      let hasTopics = false
-      const updatedRepos = repos.map((repo) => {
-        if ((repo.topics || []).length > 0)
-          hasTopics = true
-        const matched: string[] = []
-        for (const topic of repo.topics || []) {
-          const tagId = tagIdFromTopic(topic)
-          if (autoTagIds.has(tagId) && !repo.tags.includes(tagId))
-            matched.push(tagId)
-        }
-        if (matched.length > 0) {
-          classifiedCount++
-          return { ...repo, tags: [...repo.tags, ...matched] }
-        }
-        return repo
-      })
-
-      const autoCat = useTagStore.getState().categories.find(category => category.id === AUTO_CAT_ID)
-      const tagCount = autoCat?.tags.length || 0
-
-      await persistRepoSnapshot({
-        repos: updatedRepos,
-        categories: useTagStore.getState().categories,
-        ownerLogin: user.login,
-        lastSynced: get().lastSynced,
-        totalStarred: splitReposByTrash(updatedRepos).activeRepos.length,
-        gistId,
-        pat,
-      })
-
-      set({ repos: updatedRepos, classifying: false })
-      saveCache(updatedRepos, get().cacheGistId)
-      return { classified: classifiedCount, tags: tagCount, hasTopics }
-    }
-    catch (err) {
-      set({ classifying: false })
-      throw err
     }
   },
 

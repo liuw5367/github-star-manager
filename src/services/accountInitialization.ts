@@ -103,9 +103,6 @@ export async function initializeAccount(
     useRepoStore.getState().setRepos(hydrated.repos)
   }
 
-  const repos = useRepoStore.getState().repos
-  if (repos.length > 0)
-    useTagStore.getState().ensureAutoCategories(repos)
   saveAccountSnapshot(localStorage, {
     version: 1,
     gistId: candidate.id,

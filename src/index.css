@@ -3,6 +3,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --text-ui-caption: 0.75rem;
+  --text-ui-caption--line-height: 1rem;
+  --text-ui-body: 0.875rem;
+  --text-ui-body--line-height: 1.25rem;
+  --text-ui-title: 1rem;
+  --text-ui-title--line-height: 1.5rem;
   --color-gh-fg: #1f2328;
   --color-gh-fg-muted: #656d76;
   --color-gh-border: #d1d9e0;
@@ -46,7 +52,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
   color: var(--color-gh-fg);
   background: #ffffff;
-  font-size: 14px;
+  font-size: var(--text-ui-body);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -66,7 +72,7 @@ body {
   gap: 2px;
   padding: 0 7px;
   height: 20px;
-  font-size: 12px;
+  font-size: var(--text-ui-caption);
   font-weight: 500;
   border-radius: 9999px;
   background: #ddf4ff;
@@ -85,7 +91,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 5px 16px;
-  font-size: 14px;
+  font-size: var(--text-ui-body);
   font-weight: 500;
   line-height: 20px;
   border-radius: 6px;
@@ -107,13 +113,13 @@ body {
 .gh-btn-danger:hover { background: #ffebe9; border-color: #d1242f; }
 .dark .gh-btn-danger { background: #21262d; color: #f85149; border-color: rgba(248, 81, 73, 0.4); }
 .dark .gh-btn-danger:hover { background: #3d1114; border-color: #f85149; }
-.gh-btn-sm { padding: 3px 12px; font-size: 12px; }
+.gh-btn-sm { padding: 3px 12px; font-size: var(--text-ui-caption); }
 .gh-btn-default { /* same as .gh-btn */ }
 
 .gh-input {
   width: 100%;
   padding: 5px 12px;
-  font-size: 14px;
+  font-size: var(--text-ui-body);
   background: #ffffff;
   border: 1px solid var(--color-gh-border);
   border-radius: 6px;
@@ -136,7 +142,7 @@ body {
 
 .gh-select {
   padding: 3px 24px 3px 12px;
-  font-size: 12px;
+  font-size: var(--text-ui-caption);
   background: var(--color-gh-canvas);
   border: 1px solid var(--color-gh-border);
   border-radius: 6px;
@@ -220,7 +226,7 @@ body {
   right: 8px;
   z-index: 1;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--text-ui-caption);
   line-height: 1;
   border: 1px solid var(--color-gh-border);
   border-radius: 6px;

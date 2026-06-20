@@ -1,7 +1,7 @@
-import type { Category, Repo } from '../types'
+import type { Category } from '../types'
 import { create } from 'zustand'
-import { AUTO_TAG_NAMES_KEY, migrateLegacyCache, scopedCacheKey } from '../lib/accountCache'
-import { AUTO_CAT_ID, AUTO_CAT_NAME, getTopTopics, tagIdFromTopic } from '../lib/autoClassify'
+import { AUTO_TAG_NAMES_KEY, migrateLegacyCache } from '../lib/accountCache'
+import { getUserCategories } from '../lib/repoPersistence'
 
 interface TagState {
   categories: Category[]
@@ -14,30 +14,9 @@ interface TagState {
   addTag: (catId: string, name: string) => string
   deleteTag: (catId: string, tagId: string) => void
   renameTag: (catId: string, tagId: string, name: string) => void
-  ensureLanguageTag: (language: string) => string
-  ensureAutoCategories: (repos: Repo[]) => void
-  ensureAutoCategory: () => Category
-  ensureAutoTag: (tagId: string, tagName: string) => void
-  syncAutoTags: (repos: Repo[]) => Set<string>
 }
 
-function saveAutoTagName(gistId: string, tagId: string, name: string) {
-  if (!gistId)
-    return
-  try {
-    const key = scopedCacheKey(AUTO_TAG_NAMES_KEY, gistId)
-    const map = JSON.parse(localStorage.getItem(key) || '{}')
-    map[tagId] = name
-    localStorage.setItem(key, JSON.stringify(map))
-  }
-  catch {}
-}
-
-function langTagId(language: string): string {
-  return `tag_lang_${language.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
-}
-
-export const useTagStore = create<TagState>((set, get) => ({
+export const useTagStore = create<TagState>(set => ({
   categories: [],
   cacheGistId: '',
 
@@ -46,7 +25,7 @@ export const useTagStore = create<TagState>((set, get) => ({
     set({ cacheGistId: gistId })
   },
 
-  setCategories: categories => set({ categories }),
+  setCategories: categories => set({ categories: getUserCategories(categories) }),
 
   addCategory: (name) => {
     const catId = `cat_${name.toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
@@ -106,79 +85,4 @@ export const useTagStore = create<TagState>((set, get) => ({
     }))
   },
 
-  ensureLanguageTag: (language) => {
-    const tagId = langTagId(language)
-    const { categories } = get()
-    let langCat = categories.find(c => c.id === 'cat_language')
-
-    if (!langCat) {
-      const newCat: Category = { id: 'cat_language', name: '语言 / Language', order: 0, tags: [] }
-      set(s => ({ categories: [newCat, ...s.categories] }))
-      langCat = newCat
-    }
-
-    const exists = langCat.tags.find(t => t.id === tagId)
-    if (exists)
-      return tagId
-
-    saveAutoTagName(get().cacheGistId, tagId, language)
-    const tagCount = langCat.tags.length
-    set(state => ({
-      categories: state.categories.map(cat =>
-        cat.id === 'cat_language'
-          ? { ...cat, tags: [...cat.tags, { id: tagId, name: language, order: tagCount }] }
-          : cat,
-      ),
-    }))
-    return tagId
-  },
-
-  ensureAutoCategories: (repos) => {
-    const autoTagNames: Record<string, string> = JSON.parse(
-      localStorage.getItem(scopedCacheKey(AUTO_TAG_NAMES_KEY, get().cacheGistId)) || '{}',
-    )
-    const seen = new Set<string>()
-    for (const repo of repos) {
-      for (const tagId of repo.tags) {
-        if (tagId.startsWith('tag_lang_') && !seen.has(tagId)) {
-          seen.add(tagId)
-          const name = autoTagNames[tagId]
-          if (name)
-            get().ensureLanguageTag(name)
-        }
-      }
-    }
-  },
-
-  ensureAutoCategory: () => {
-    const { categories } = get()
-    const existing = categories.find(c => c.id === AUTO_CAT_ID)
-    if (existing)
-      return existing
-    const newCat: Category = { id: AUTO_CAT_ID, name: AUTO_CAT_NAME, order: 0, tags: [] }
-    set(s => ({ categories: [newCat, ...s.categories] }))
-    return newCat
-  },
-
-  ensureAutoTag: (tagId, tagName) => {
-    set(state => ({
-      categories: state.categories.map(cat =>
-        cat.id === AUTO_CAT_ID && !cat.tags.some(t => t.id === tagId)
-          ? { ...cat, tags: [...cat.tags, { id: tagId, name: tagName, order: cat.tags.length }] }
-          : cat,
-      ),
-    }))
-  },
-
-  syncAutoTags: (repos) => {
-    get().ensureAutoCategory()
-    const topTopics = getTopTopics(repos)
-    const tagIds = new Set<string>()
-    for (const topic of topTopics) {
-      const tid = tagIdFromTopic(topic)
-      get().ensureAutoTag(tid, topic)
-      tagIds.add(tid)
-    }
-    return tagIds
-  },
 }))

@@ -83,12 +83,12 @@ export function RepoList() {
               <svg width="40" height="40" viewBox="0 0 16 16" fill="currentColor" className="mb-3 text-gh-fg-muted">
                 <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
               </svg>
-              <p className="text-sm">
+              <p className="text-ui-body">
                 {emptyState === 'no-data' && '暂无仓库数据'}
                 {emptyState === 'empty-trash' && '回收站为空'}
                 {emptyState === 'no-results' && '没有匹配的仓库'}
               </p>
-              <p className="mt-1 text-xs text-gh-fg-muted/70">
+              <p className="mt-1 text-ui-caption text-gh-fg-muted/70">
                 {emptyState === 'no-data' && '先同步 GitHub Star 列表开始使用'}
                 {emptyState === 'empty-trash' && '取消 Star 的仓库会暂存在这里'}
                 {emptyState === 'no-results' && '试试调整搜索词或筛选条件'}

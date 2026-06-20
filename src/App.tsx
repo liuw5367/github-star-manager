@@ -56,7 +56,7 @@ export default function App() {
   if (checking) {
     return (
       <div className="flex h-screen items-center justify-center bg-white dark:bg-gh-canvas">
-        <div className="flex items-center gap-2 text-sm text-gh-fg-muted">
+        <div className="flex items-center gap-2 text-ui-body text-gh-fg-muted">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="animate-spin">
             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" strokeDasharray="28" strokeLinecap="round" />
           </svg>

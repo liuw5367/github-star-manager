@@ -1,11 +1,10 @@
 import type { Repo } from '../../types'
 import { useRef, useState } from 'react'
-import { AUTO_CAT_ID } from '../../lib/autoClassify'
 import { formatISODate, formatStars, getLanguageColor } from '../../lib/utils'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
 import { useUiStore } from '../../stores/uiStore'
-import { EditIcon, NoteIcon, StarIcon } from '../shared/Icons'
+import { EditIcon, ExternalIcon, NoteIcon, StarIcon } from '../shared/Icons'
 import { TagPill } from '../shared/TagPill'
 import { RepoTagPicker } from './RepoTagPicker'
 
@@ -46,8 +45,6 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
 
   const tagNames = (repo.tags || []).flatMap((tagId) => {
     for (const cat of categories) {
-      if (cat.id === AUTO_CAT_ID)
-        continue
       const found = cat.tags.find(t => t.id === tagId)
       if (found)
         return [{ id: tagId, name: found.name }]
@@ -68,8 +65,23 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
             alt=""
             className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5"
           />
-          <span className="text-sm font-semibold text-gh-accent hover:underline truncate block">
+          <span className="text-ui-body font-semibold text-gh-accent truncate block">
             {repo.full_name}
+          </span>
+          <a
+            href={`https://github.com/${repo.full_name}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={event => event.stopPropagation()}
+            className="text-gh-fg-muted hover:text-gh-accent flex-shrink-0"
+            title="在 GitHub 打开"
+            aria-label={`在 GitHub 打开 ${repo.full_name}`}
+          >
+            <ExternalIcon />
+          </a>
+          <span className="flex items-center gap-0.5 text-ui-caption text-gh-fg-muted flex-shrink-0">
+            <StarIcon size={12} />
+            {formatStars(repo.stargazers_count)}
           </span>
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -114,7 +126,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
 
       {repo.description && (
         <p
-          className="text-xs text-gh-fg-muted leading-relaxed mb-2"
+          className="text-ui-caption text-gh-fg-muted leading-relaxed mb-2"
           title={repo.description}
           style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
         >
@@ -125,31 +137,27 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       {repo.topics && repo.topics.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap mb-2">
           {repo.topics.map(topic => (
-            <span key={topic} className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full bg-gh-canvas text-gh-accent border border-gh-border leading-none">
+            <span key={topic} className="inline-flex items-center px-2 py-0.5 text-ui-caption font-medium rounded-full bg-gh-canvas text-gh-accent border border-gh-border leading-none">
               {topic}
             </span>
           ))}
         </div>
       )}
 
-      <div className="flex items-center gap-3 text-xs text-gh-fg-muted mb-2 flex-wrap">
+      <div className="flex items-center gap-3 text-ui-caption text-gh-fg-muted mb-2 flex-wrap">
         {repo.language && (
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: getLanguageColor(repo.language) }} />
             {repo.language}
           </span>
         )}
-        <span className="flex items-center gap-0.5">
-          <StarIcon size={12} />
-          {formatStars(repo.stargazers_count)}
-        </span>
         <span className="flex-1" />
         <span>
-          更新:
+          最后更新：
           {formatISODate(repo.updated_at)}
         </span>
         <span>
-          Starred:
+          关注时间：
           {formatISODate(repo.starred_at)}
         </span>
       </div>
@@ -172,7 +180,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       {editingNote && (
         <div className="mt-2" onClick={e => e.stopPropagation()}>
           <textarea
-            className="gh-input text-xs resize-none"
+            className="gh-input text-ui-caption resize-none"
             rows={2}
             placeholder="添加备注..."
             value={noteText}
@@ -187,7 +195,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
       )}
 
       {!editingNote && repo.note && (
-        <div className="mt-1 flex items-start gap-1.5 text-xs text-gh-fg-muted">
+        <div className="mt-1 flex items-start gap-1.5 text-ui-caption text-gh-fg-muted">
           <span className="mt-0.5 flex-shrink-0">📝</span>
           <span className="truncate">{repo.note}</span>
         </div>

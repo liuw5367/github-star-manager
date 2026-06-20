@@ -22,7 +22,7 @@ export function Toast() {
   }
 
   return (
-    <div className={`toast-enter fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium shadow-lg ${bgMap[toast.type] || bgMap.info}`}>
+    <div className={`toast-enter fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg border text-ui-body font-medium shadow-lg ${bgMap[toast.type] || bgMap.info}`}>
       {toast.message}
     </div>
   )

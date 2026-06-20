@@ -1,7 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getReadme } from '../../api/github'
-import { formatStars, getLanguageColor } from '../../lib/utils'
+import { formatISODate, formatStars, getLanguageColor } from '../../lib/utils'
 import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useUiStore } from '../../stores/uiStore'
@@ -205,18 +205,18 @@ export function ReadmePanel() {
       <div className="flex items-start justify-between p-4 border-b border-gh-border-muted">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-base font-semibold text-gh-accent truncate">{repo.full_name}</h2>
+            <h2 className="text-ui-title font-semibold text-gh-accent truncate">{repo.full_name}</h2>
             <a
               href={`https://github.com/${repo.full_name}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-gh-fg-muted hover:text-gh-accent flex-shrink-0"
+              className="flex items-center gap-1 text-ui-caption text-gh-fg-muted hover:text-gh-accent flex-shrink-0"
             >
               在 GitHub 打开
               <ExternalIcon />
             </a>
           </div>
-          <div className="flex items-center gap-3 text-xs text-gh-fg-muted flex-wrap">
+          <div className="flex items-center gap-3 text-ui-caption text-gh-fg-muted flex-wrap">
             <span className="flex items-center gap-0.5">
               <StarIcon filled size={12} />
               {formatStars(repo.stargazers_count)}
@@ -228,12 +228,12 @@ export function ReadmePanel() {
               </span>
             )}
             <span>
-              Updated:
-              {repo.updated_at}
+              最后更新时间：
+              {formatISODate(repo.updated_at)}
             </span>
           </div>
           {repo.description && (
-            <p className="text-xs text-gh-fg-muted mt-1.5">{repo.description}</p>
+            <p className="text-ui-caption text-gh-fg-muted mt-1.5">{repo.description}</p>
           )}
         </div>
         <button
@@ -264,7 +264,7 @@ export function ReadmePanel() {
           : error
             ? (
                 <div className="flex flex-col items-center justify-center py-16 text-gh-fg-muted">
-                  <p className="text-sm">{error}</p>
+                  <p className="text-ui-body">{error}</p>
                 </div>
               )
             : (

@@ -1,4 +1,46 @@
 import type { Category, Repo, Tag } from '../types'
+import { getTopTopics } from './autoClassify.ts'
+
+export const DERIVED_LANGUAGE_CAT_ID = 'derived:language'
+export const DERIVED_AUTO_CAT_ID = 'derived:auto'
+
+function derivedTag(idPrefix: 'lang' | 'topic', name: string, order: number): Tag {
+  return { id: `${idPrefix}:${encodeURIComponent(name)}`, name, order }
+}
+
+function repoNameWords(repo: Repo): string[] {
+  return (repo.full_name.split('/')[1] || '').split(/[-_.]+/).map(word => word.toLowerCase())
+}
+
+export function repoMatchesFilter(repo: Repo, filter: string): boolean {
+  if (filter.startsWith('lang:'))
+    return repo.language?.toLowerCase() === decodeURIComponent(filter.slice(5)).toLowerCase()
+  if (filter.startsWith('topic:')) {
+    const topic = decodeURIComponent(filter.slice(6)).toLowerCase()
+    return repo.topics?.some(value => value.toLowerCase() === topic) || repoNameWords(repo).includes(topic)
+  }
+  return false
+}
+
+export function getDerivedCategories(repos: Repo[]): Category[] {
+  const activeRepos = repos.filter(repo => !repo.trashed_at)
+  const languageCounts = new Map<string, number>()
+  for (const repo of activeRepos) {
+    if (repo.language)
+      languageCounts.set(repo.language, (languageCounts.get(repo.language) || 0) + 1)
+  }
+
+  const languages = [...languageCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([language], index) => derivedTag('lang', language, index))
+  const autoTags = getTopTopics(activeRepos)
+    .map((topic, index) => derivedTag('topic', topic, index))
+
+  return [
+    { id: DERIVED_LANGUAGE_CAT_ID, name: '语言', order: 0, tags: languages },
+    { id: DERIVED_AUTO_CAT_ID, name: '自动分类', order: 1, tags: autoTags },
+  ]
+}
 
 interface FilterArgs {
   repos: Repo[]
@@ -48,6 +90,9 @@ export function getFilteredRepos({
       const tagId = activeFilter.slice(4)
       filtered = filtered.filter(repo => repo.tags?.includes(tagId))
     }
+    else if (activeFilter.startsWith('lang:') || activeFilter.startsWith('topic:')) {
+      filtered = filtered.filter(repo => repoMatchesFilter(repo, activeFilter))
+    }
   }
 
   if (searchQuery) {
@@ -64,6 +109,12 @@ export function getFilteredRepos({
       if (repo.full_name.toLowerCase().includes(query))
         return true
       if (repo.description?.toLowerCase().includes(query))
+        return true
+      if (repo.topics?.some(topic => topic.toLowerCase().includes(query)))
+        return true
+      if (repo.note?.toLowerCase().includes(query))
+        return true
+      if (repo.language?.toLowerCase().includes(query))
         return true
       if (repo.tags?.some(tagId => tagNameMap.get(tagId)?.includes(query)))
         return true

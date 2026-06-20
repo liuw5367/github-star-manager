@@ -11,7 +11,7 @@ import {
   writeRepoSnapshot,
 } from '../src/lib/repoPersistence.ts'
 
-test('mergeRemoteRepoData merges cached repos, remote tags/notes, and trash state', () => {
+test('mergeRemoteRepoData merges remote metadata and removes legacy derived tags', () => {
   const cachedRepos = [
     {
       full_name: 'acme/active',
@@ -53,7 +53,7 @@ test('mergeRemoteRepoData merges cached repos, remote tags/notes, and trash stat
       stargazers_count: 10,
       updated_at: '2026-06-01T00:00:00Z',
       starred_at: '2026-06-01T00:00:00Z',
-      tags: ['tag_lang_typescript', 'tag_remote'],
+      tags: ['tag_remote'],
       note: 'remote note',
       trashed_at: null,
     },
@@ -72,7 +72,7 @@ test('mergeRemoteRepoData merges cached repos, remote tags/notes, and trash stat
   ])
 })
 
-test('buildGistPayload serializes active repos, trash repos, and strips language category', () => {
+test('buildGistPayload serializes only user categories and user tags', () => {
   const repos = [
     {
       full_name: 'acme/active',
@@ -82,7 +82,7 @@ test('buildGistPayload serializes active repos, trash repos, and strips language
       stargazers_count: 0,
       updated_at: '',
       starred_at: '',
-      tags: ['tag_lang_typescript', 'tag_keep'],
+      tags: ['tag_lang_typescript', 'tag_auto_ui', 'tag_keep'],
       note: 'active note',
       trashed_at: null,
     },
@@ -102,6 +102,7 @@ test('buildGistPayload serializes active repos, trash repos, and strips language
 
   const categories = [
     { id: 'cat_language', name: '语言 / Language', order: 0, tags: [] },
+    { id: 'cat_auto_classify', name: '自动分类', order: 0, tags: [] },
     { id: 'cat_user', name: 'User', order: 1, tags: [{ id: 'tag_keep', name: 'Keep', order: 0 }] },
   ]
 
@@ -139,7 +140,7 @@ test('buildGistPayload serializes active repos, trash repos, and strips language
   })
 })
 
-test('reconcileReposWithCategories removes deleted user tags but keeps language tags', () => {
+test('reconcileReposWithCategories removes deleted and legacy derived tags', () => {
   const repos = [
     {
       full_name: 'acme/app',
@@ -149,7 +150,7 @@ test('reconcileReposWithCategories removes deleted user tags but keeps language 
       stargazers_count: 0,
       updated_at: '',
       starred_at: '',
-      tags: ['tag_lang_typescript', 'tag_keep', 'tag_deleted'],
+      tags: ['tag_lang_typescript', 'tag_auto_ui', 'tag_keep', 'tag_deleted'],
       note: '',
       trashed_at: null,
     },
@@ -169,7 +170,7 @@ test('reconcileReposWithCategories removes deleted user tags but keeps language 
       stargazers_count: 0,
       updated_at: '',
       starred_at: '',
-      tags: ['tag_lang_typescript', 'tag_keep'],
+      tags: ['tag_keep'],
       note: '',
       trashed_at: null,
     },
@@ -312,7 +313,11 @@ test('hydrateGistFiles merges remote metadata into cached repository details', (
   }]
   const files = {
     'meta.json': JSON.stringify({ last_synced: '2026-06-19T00:00:00Z' }),
-    'categories.json': JSON.stringify({ categories: [{ id: 'cat_tools', name: 'Tools', order: 0, tags: [] }] }),
+    'categories.json': JSON.stringify({ categories: [
+      { id: 'cat_language', name: '语言 / Language', order: 0, tags: [] },
+      { id: 'cat_auto_classify', name: '自动分类', order: 1, tags: [] },
+      { id: 'cat_tools', name: 'Tools', order: 2, tags: [] },
+    ] }),
     'tags.json': JSON.stringify({ 'acme/repo': ['tag_cli'] }),
     'notes.json': JSON.stringify({ 'acme/repo': 'remote note' }),
     'trash.json': '{}',
@@ -321,9 +326,9 @@ test('hydrateGistFiles merges remote metadata into cached repository details', (
   const hydrated = hydrateGistFiles(files, cachedRepos)
 
   assert.equal(hydrated.lastSynced, '2026-06-19T00:00:00Z')
-  assert.deepEqual(hydrated.categories, [{ id: 'cat_tools', name: 'Tools', order: 0, tags: [] }])
+  assert.deepEqual(hydrated.categories, [{ id: 'cat_tools', name: 'Tools', order: 2, tags: [] }])
   assert.equal(hydrated.repos[0].description, 'cached description')
-  assert.deepEqual(hydrated.repos[0].tags, ['tag_lang_typescript', 'tag_cli'])
+  assert.deepEqual(hydrated.repos[0].tags, ['tag_cli'])
   assert.equal(hydrated.repos[0].note, 'remote note')
 })
 

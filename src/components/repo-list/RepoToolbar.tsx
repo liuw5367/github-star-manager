@@ -36,12 +36,8 @@ export function RepoToolbar() {
       .sort((a, b) => b.count - a.count)
   }, [activeRepos])
 
-  function langTagId(language: string): string {
-    return `tag_lang_${language.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
-  }
-
-  const selectedLang = activeFilter.startsWith('tag:tag_lang_')
-    ? [...langOptions].find(o => langTagId(o.name) === activeFilter.slice(4))?.name || ''
+  const selectedLang = activeFilter.startsWith('lang:')
+    ? decodeURIComponent(activeFilter.slice(5))
     : ''
 
   const handleSync = async () => {
@@ -83,17 +79,17 @@ export function RepoToolbar() {
             <SyncIcon spinning={syncing} />
             <span className="hidden sm:inline">{syncing ? syncProgress || '同步中...' : '同步'}</span>
           </button>
-          <span className="hidden lg:inline text-xs text-gh-fg-muted">
+          <span className="hidden lg:inline text-ui-caption text-gh-fg-muted">
             {lastSynced ? `上次同步 ${formatISODate(lastSynced)}` : '尚未同步'}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <select
-            className="gh-select text-xs h-7"
+            className="gh-select text-ui-caption h-7"
             value={selectedLang}
             onChange={(e) => {
               const val = e.target.value
-              setActiveFilter(val ? `tag:${langTagId(val)}` : 'all')
+              setActiveFilter(val ? `lang:${encodeURIComponent(val)}` : 'all')
             }}
           >
             <option value="">全部语言</option>
@@ -108,7 +104,7 @@ export function RepoToolbar() {
             ))}
           </select>
           <select
-            className="gh-select text-xs"
+            className="gh-select text-ui-caption"
             style={{ backgroundImage: 'none', paddingRight: 12 }}
             value={`${sortBy}:${sortDir}`}
             onChange={(e) => {
@@ -134,8 +130,8 @@ export function RepoToolbar() {
           <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
           <input
             type="text"
-            placeholder="搜索仓库名、描述、标签..."
-            className="gh-input text-sm h-9 md:h-8"
+            placeholder="搜索名称、描述、topics、标签、备注或语言..."
+            className="gh-input text-ui-body h-9 md:h-8"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{ paddingLeft: 32 }}
