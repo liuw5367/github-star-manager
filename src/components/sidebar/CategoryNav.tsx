@@ -59,7 +59,9 @@ export function CategoryNav() {
                 </div>
               )}
             </div>
-            <button onClick={logout} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted hover:text-gh-danger flex-shrink-0" title="退出登录">
+            {/* Native confirmation keeps this destructive boundary synchronous and dependency-free. */}
+            {/* eslint-disable-next-line no-alert */}
+            <button onClick={() => window.confirm('退出登录会移除本机账号缓存，但不会删除 GitHub 或 Gist 数据。确定继续吗？') && logout()} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted hover:text-gh-danger flex-shrink-0" title="退出登录" aria-label="退出登录">
               <LogoutIcon />
             </button>
           </div>

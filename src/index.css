@@ -3,6 +3,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  --spacing-control-compact: 28px;
+  --spacing-control-default: 32px;
+  --spacing-control-touch: 44px;
   --text-ui-caption: 0.75rem;
   --text-ui-caption--line-height: 1rem;
   --text-ui-body: 0.875rem;
@@ -24,6 +27,19 @@
   --color-gh-danger-subtle: #ffebe9;
   --color-gh-warning-subtle: #fff8c5;
 }
+
+.ui-button, .ui-icon-button { display:inline-flex; align-items:center; justify-content:center; border-radius:6px; font-weight:500; transition:background-color 80ms,border-color 80ms,color 80ms,opacity 80ms; }
+.ui-button { gap:6px; padding-inline:12px; border:1px solid var(--color-gh-border); }
+.ui-icon-button { aspect-ratio:1; color:var(--color-gh-fg-muted); }
+.ui-button-compact { min-height:var(--spacing-control-compact); }
+.ui-button-default { min-height:var(--spacing-control-default); }
+.ui-button-touch { min-height:var(--spacing-control-touch); }
+.ui-button-primary { background:var(--color-gh-success); color:white; border-color:transparent; }
+.ui-button-secondary { background:var(--color-gh-canvas); color:var(--color-gh-fg); }
+.ui-button-danger { color:var(--color-gh-danger); background:var(--color-gh-danger-subtle); border-color:var(--color-gh-danger); }
+.ui-button-ghost { color:var(--color-gh-fg-muted); border-color:transparent; background:transparent; }
+.ui-button:hover:not(:disabled),.ui-icon-button:hover:not(:disabled) { background-color:var(--color-gh-canvas-subtle); color:var(--color-gh-fg); }
+.ui-button:disabled,.ui-icon-button:disabled { cursor:not-allowed; opacity:.55; }
 
 .dark {
   color-scheme: dark;

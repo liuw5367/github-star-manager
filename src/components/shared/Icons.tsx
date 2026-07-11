@@ -159,3 +159,13 @@ export function LogoutIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function SunIcon(props: IconProps) {
+  return <svg width={16} height={16} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" {...props}><path d="M8 3.25A4.75 4.75 0 1 0 8 12.75 4.75 4.75 0 0 0 8 3.25Zm0 1.5a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5ZM8 0a.75.75 0 0 1 .75.75v1a.75.75 0 0 1-1.5 0v-1A.75.75 0 0 1 8 0Z" /></svg>
+}
+export function MoonIcon(props: IconProps) {
+  return <svg width={16} height={16} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" {...props}><path d="M9.6.19a.75.75 0 0 1 .315.83 5.75 5.75 0 0 0 5.064 7.065.75.75 0 0 1 .572 1.208A7.75 7.75 0 1 1 8.707.449.75.75 0 0 1 9.6.19ZM8.21 2.246a6.25 6.25 0 1 0 5.544 7.544A7.25 7.25 0 0 1 8.21 2.246Z" /></svg>
+}
+export function SystemThemeIcon(props: IconProps) {
+  return <svg width={16} height={16} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" {...props}><path d="M1.75 2h12.5C15.216 2 16 2.784 16 3.75v7.5A1.75 1.75 0 0 1 14.25 13H9v1.5h2.25a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5H7V13H1.75A1.75 1.75 0 0 1 0 11.25v-7.5C0 2.784.784 2 1.75 2Z" /></svg>
+}

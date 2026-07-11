@@ -116,12 +116,15 @@ export function TagManagerModal() {
   return (
     <div className="fixed inset-0 bg-black/50 z-100 flex items-center justify-center" onClick={() => setShowTagManager(false)}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tag-manager-title"
         className="bg-white dark:bg-gh-canvas border border-gh-border rounded-xl shadow-lg w-[520px] max-w-[calc(100vw-32px)] max-h-[calc(100vh-48px)] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gh-border-muted">
-          <h3 className="text-ui-body font-semibold text-gh-fg">管理标签</h3>
-          <button onClick={() => setShowTagManager(false)} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted">
+          <h3 id="tag-manager-title" className="text-ui-body font-semibold text-gh-fg">管理标签</h3>
+          <button onClick={() => setShowTagManager(false)} className="p-1 rounded hover:bg-gh-canvas transition-colors text-gh-fg-muted" aria-label="关闭标签管理">
             <CloseIcon />
           </button>
         </div>
