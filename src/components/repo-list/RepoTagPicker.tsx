@@ -109,6 +109,15 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
                   key={tag.id}
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer hover:bg-gh-canvas transition-colors text-ui-body"
                   onClick={() => toggleTag(repo.full_name, tag.id)}
+                  role="checkbox"
+                  aria-checked={checked}
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      toggleTag(repo.full_name, tag.id)
+                    }
+                  }}
                 >
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? 'bg-gh-accent border-gh-accent' : 'border-gh-border bg-white dark:bg-gh-canvas'}`}>
                     {checked && <CheckIcon />}

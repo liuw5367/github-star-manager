@@ -55,6 +55,15 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onClick()
+        }
+      }}
       className={`group border-b border-gh-border-muted cursor-pointer transition-colors ${isSelected ? 'bg-gh-accent/5 border-l-2 !border-l-gh-accent' : 'hover:bg-gh-canvas/60 border-l-2 border-l-transparent'}`}
       style={{ padding: '12px 12px 10px' }}
     >

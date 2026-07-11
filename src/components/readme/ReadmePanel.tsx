@@ -85,6 +85,7 @@ export function ReadmePanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [readmeHtml, setReadmeHtml] = useState('')
+  const [retryNonce, setRetryNonce] = useState(0)
 
   const isDark = useMemo(() => {
     if (theme === 'dark')
@@ -137,7 +138,7 @@ export function ReadmePanel() {
     return () => {
       cancelled = true
     }
-  }, [repo?.full_name, theme, isDark, pat, repo])
+  }, [repo?.full_name, theme, isDark, pat, repo, retryNonce])
 
   useEffect(() => {
     if (!readmeHtml || !contentRef.current)
@@ -265,12 +266,13 @@ export function ReadmePanel() {
             ? (
                 <div className="flex flex-col items-center justify-center py-16 text-gh-fg-muted">
                   <p className="text-ui-body">{error}</p>
+                  {!error.includes('没有 README') && <button type="button" className="gh-btn gh-btn-default gh-btn-sm mt-3" onClick={() => setRetryNonce(value => value + 1)}>重试</button>}
                 </div>
               )
             : (
                 <div
                   ref={contentRef}
-                  className="p-6 readme-content"
+                  className="p-4 sm:p-6 readme-content"
                   style={{ maxWidth: 800 }}
                   // README HTML is rendered from GitHub-hosted markdown content.
                   // eslint-disable-next-line react/dom-no-dangerously-set-innerhtml
