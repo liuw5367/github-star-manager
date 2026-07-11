@@ -64,8 +64,11 @@ export function RepoTagPicker({ repo, anchorRef, onClose }: RepoTagPickerProps) 
   const handleCreate = () => {
     if (!newTagName.trim() || !newTagCat)
       return
-    const tagId = `tag_${newTagName.trim().toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
-    addTag(newTagCat, newTagName.trim())
+    const tagId = addTag(newTagCat, newTagName.trim())
+    if (!tagId) {
+      setToast({ message: '该分类中已存在同名标签', type: 'error' })
+      return
+    }
     toggleTag(repo.full_name, tagId)
     setNewTagName('')
     setNewTagCat('')

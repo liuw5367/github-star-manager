@@ -1,6 +1,7 @@
 import type { Category } from '../../types'
 import { useState } from 'react'
 import { persistRepoSnapshot, reconcileReposWithCategories, splitReposByTrash } from '../../lib/repoPersistence'
+import { createCategoryId, createTagId, hasDuplicateName } from '../../lib/tagIdentity'
 import { useAuthStore } from '../../stores/authStore'
 import { useRepoStore } from '../../stores/repoStore'
 import { useTagStore } from '../../stores/tagStore'
@@ -30,7 +31,12 @@ export function TagManagerModal() {
   const handleAddTag = (catId: string) => {
     if (!newTagName.trim())
       return
-    const tagId = `tag_${newTagName.trim().toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
+    const category = localCats.find(cat => cat.id === catId)
+    if (category && hasDuplicateName(category.tags, newTagName)) {
+      setToast({ message: '该分类中已存在同名标签', type: 'error' })
+      return
+    }
+    const tagId = createTagId()
     setLocalCats(prev => prev.map(cat =>
       cat.id === catId
         ? { ...cat, tags: [...cat.tags, { id: tagId, name: newTagName.trim(), order: cat.tags.length }] }
@@ -51,6 +57,11 @@ export function TagManagerModal() {
   const handleSaveTagName = (catId: string, tagId: string) => {
     if (!editingTagName.trim())
       return
+    const category = localCats.find(cat => cat.id === catId)
+    if (category && hasDuplicateName(category.tags, editingTagName, tagId)) {
+      setToast({ message: '该分类中已存在同名标签', type: 'error' })
+      return
+    }
     setLocalCats(prev => prev.map(cat =>
       cat.id === catId
         ? { ...cat, tags: cat.tags.map(t => t.id === tagId ? { ...t, name: editingTagName.trim() } : t) }
@@ -63,7 +74,11 @@ export function TagManagerModal() {
   const handleAddCategory = () => {
     if (!newCatName.trim())
       return
-    const catId = `cat_${newCatName.trim().toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
+    if (hasDuplicateName(localCats, newCatName)) {
+      setToast({ message: '已存在同名分类', type: 'error' })
+      return
+    }
+    const catId = createCategoryId()
     setLocalCats(prev => [...prev, { id: catId, name: newCatName.trim(), order: prev.length, tags: [] }])
     setNewCatName('')
     setShowNewCat(false)

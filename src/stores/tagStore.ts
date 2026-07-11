@@ -2,6 +2,7 @@ import type { Category } from '../types'
 import { create } from 'zustand'
 import { AUTO_TAG_NAMES_KEY, migrateLegacyCache } from '../lib/accountCache'
 import { getUserCategories } from '../lib/repoPersistence'
+import { createCategoryId, createTagId, hasDuplicateName } from '../lib/tagIdentity'
 
 interface TagState {
   categories: Category[]
@@ -28,15 +29,17 @@ export const useTagStore = create<TagState>(set => ({
   setCategories: categories => set({ categories: getUserCategories(categories) }),
 
   addCategory: (name) => {
-    const catId = `cat_${name.toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
+    const catId = createCategoryId()
+    let added = false
     set((state) => {
-      if (state.categories.some(c => c.id === catId))
+      if (hasDuplicateName(state.categories, name))
         return state
+      added = true
       return {
-        categories: [...state.categories, { id: catId, name, order: state.categories.length, tags: [] }],
+        categories: [...state.categories, { id: catId, name: name.trim(), order: state.categories.length, tags: [] }],
       }
     })
-    return catId
+    return added ? catId : ''
   },
 
   deleteCategory: (catId) => {
@@ -54,15 +57,17 @@ export const useTagStore = create<TagState>(set => ({
   },
 
   addTag: (catId, name) => {
-    const tagId = `tag_${name.toLowerCase().replace(/[^a-z0-9]/gu, '_').replace(/_+/g, '_')}`
+    const tagId = createTagId()
+    let added = false
     set(state => ({
-      categories: state.categories.map(cat =>
-        cat.id === catId
-          ? { ...cat, tags: [...cat.tags, { id: tagId, name, order: cat.tags.length }] }
-          : cat,
-      ),
+      categories: state.categories.map((cat) => {
+        if (cat.id !== catId || hasDuplicateName(cat.tags, name))
+          return cat
+        added = true
+        return { ...cat, tags: [...cat.tags, { id: tagId, name: name.trim(), order: cat.tags.length }] }
+      }),
     }))
-    return tagId
+    return added ? tagId : ''
   },
 
   deleteTag: (catId, tagId) => {
