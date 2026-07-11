@@ -7,6 +7,12 @@ test('exports deterministic account bootstrap decisions', () => {
   assert.equal(typeof bootstrap.decideAccountBootstrap, 'function')
 })
 
+test('does not automatically restore a session that requires reauthentication', () => {
+  assert.equal(bootstrap.shouldRestoreCachedSession('unverified'), true)
+  assert.equal(bootstrap.shouldRestoreCachedSession('valid'), true)
+  assert.equal(bootstrap.shouldRestoreCachedSession('reauth_required'), false)
+})
+
 function candidate(id, initialized = true) {
   return {
     id,

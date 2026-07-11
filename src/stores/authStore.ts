@@ -1,3 +1,4 @@
+import type { CredentialStatus } from '../lib/accountBootstrap'
 import type { User } from '../types'
 import { create } from 'zustand'
 import { AUTO_TAG_NAMES_KEY, clearAccountCache, REPO_CACHE_KEY, saveCachedUser, scopedCacheKey } from '../lib/accountCache'
@@ -8,9 +9,12 @@ interface AuthState {
   user: User | null
   isAuth: boolean
   checking: boolean
+  credentialStatus: CredentialStatus
   login: (pat: string, user: User, gistId: string) => void
   logout: () => void
   setCheckingDone: () => void
+  setCredentialStatus: (status: CredentialStatus) => void
+  requireReauthentication: () => void
 }
 
 function loadFromStorage() {
@@ -27,11 +31,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuth: false,
   checking: true,
+  credentialStatus: 'unverified',
   login: (pat, user, gistId) => {
     localStorage.setItem('github_star_manager_pat', pat)
     localStorage.setItem('github_star_manager_gist_id', gistId)
     saveCachedUser(localStorage, gistId, user)
-    set({ pat, gistId, user, isAuth: true, checking: false })
+    set({ pat, gistId, user, isAuth: true, checking: false, credentialStatus: 'valid' })
   },
   logout: () => {
     const currentGistId = get().gistId
@@ -43,7 +48,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.removeItem('github_star_manager_gist_id')
     localStorage.removeItem(REPO_CACHE_KEY)
     localStorage.removeItem(AUTO_TAG_NAMES_KEY)
-    set({ pat: '', gistId: '', user: null, isAuth: false, checking: false })
+    set({ pat: '', gistId: '', user: null, isAuth: false, checking: false, credentialStatus: 'unverified' })
   },
   setCheckingDone: () => set({ checking: false }),
+  setCredentialStatus: credentialStatus => set({ credentialStatus }),
+  requireReauthentication: () => set({ isAuth: false, checking: false, credentialStatus: 'reauth_required' }),
 }))

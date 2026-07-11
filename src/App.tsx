@@ -1,9 +1,13 @@
 import type { AccountInitializationResult } from './services/accountInitialization'
 import { useEffect, useState } from 'react'
+import { isAuthenticationError } from './api/errors'
+import { getUser } from './api/github'
 import { AuthPage } from './components/auth/AuthPage'
 import AppShell from './components/layout/AppShell'
+import { shouldRestoreCachedSession } from './lib/accountBootstrap'
 import { initializeAccount, restoreAccountFromCache } from './services/accountInitialization'
 import { useAuthStore } from './stores/authStore'
+import { useUiStore } from './stores/uiStore'
 
 type PendingSelection = Extract<AccountInitializationResult, { kind: 'choose' }>
 
@@ -11,6 +15,10 @@ export default function App() {
   const isAuth = useAuthStore(s => s.isAuth)
   const checking = useAuthStore(s => s.checking)
   const setCheckingDone = useAuthStore(s => s.setCheckingDone)
+  const credentialStatus = useAuthStore(s => s.credentialStatus)
+  const setCredentialStatus = useAuthStore(s => s.setCredentialStatus)
+  const requireReauthentication = useAuthStore(s => s.requireReauthentication)
+  const notify = useUiStore(s => s.notify)
   const [status, setStatus] = useState('验证登录状态...')
   const [pendingSelection, setPendingSelection] = useState<PendingSelection | null>(null)
   const [startupError, setStartupError] = useState('')
@@ -25,8 +33,29 @@ export default function App() {
       setCheckingDone()
       return
     }
-    if (storedGistId && restoreAccountFromCache(storedPat, storedGistId))
+    if (storedGistId && shouldRestoreCachedSession(credentialStatus) && restoreAccountFromCache(storedPat, storedGistId)) {
+      void getUser(storedPat)
+        .then(() => setCredentialStatus('valid'))
+        .catch((error: unknown) => {
+          if (isAuthenticationError(error)) {
+            setStartupError(error.message)
+            requireReauthentication()
+            return
+          }
+          notify({
+            kind: 'warning',
+            title: '暂时无法验证 GitHub 凭证',
+            message: error instanceof Error ? error.message : '请检查网络后重试',
+            persistent: true,
+            dedupeKey: 'credential-verification',
+          })
+        })
       return
+    }
+    if (credentialStatus === 'reauth_required') {
+      setCheckingDone()
+      return
+    }
 
     let cancelled = false
     ;(async () => {
@@ -51,7 +80,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [isAuth, setCheckingDone])
+  }, [credentialStatus, isAuth, notify, requireReauthentication, setCheckingDone, setCredentialStatus])
 
   if (checking) {
     return (

@@ -9,6 +9,12 @@ export type AccountBootstrapDecision
     | { kind: 'load', candidate: GistCandidate }
     | { kind: 'sync', candidate: GistCandidate }
 
+export type CredentialStatus = 'unverified' | 'valid' | 'reauth_required'
+
+export function shouldRestoreCachedSession(status: CredentialStatus): boolean {
+  return status !== 'reauth_required'
+}
+
 export function decideAccountBootstrap(
   candidates: GistCandidate[],
   hasScopedCache: boolean,

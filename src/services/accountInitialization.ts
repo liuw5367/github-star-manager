@@ -30,6 +30,7 @@ export function restoreAccountFromCache(pat: string, gistId: string): boolean {
     useRepoStore.getState().setLastSynced(snapshot.lastSynced)
     useRepoStore.getState().setRepos(snapshot.repos, false)
     useAuthStore.getState().login(pat, user, gistId)
+    useAuthStore.getState().setCredentialStatus('unverified')
   })
 }
 
