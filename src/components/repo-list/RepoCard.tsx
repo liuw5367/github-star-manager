@@ -84,7 +84,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
             <ExternalIcon />
           </a>
         </div>
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-70 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
           <button
             onClick={(e) => {
               e.stopPropagation()
@@ -196,7 +196,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
 
       {!editingNote && repo.note && (
         <div className="mt-1 flex items-start gap-1.5 text-ui-caption text-gh-fg-muted">
-          <span className="mt-0.5 flex-shrink-0">📝</span>
+          <span className="mt-0.5 flex-shrink-0"><NoteIcon /></span>
           <span className="truncate">{repo.note}</span>
         </div>
       )}

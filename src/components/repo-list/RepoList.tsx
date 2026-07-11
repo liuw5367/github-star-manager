@@ -14,6 +14,7 @@ export function RepoList() {
   const activeFilter = useUiStore(s => s.activeFilter)
   const selectedRepo = useUiStore(s => s.selectedRepo)
   const setSelectedRepo = useUiStore(s => s.setSelectedRepo)
+  const syncStarred = useRepoStore(s => s.syncStarred)
   const sortBy = useUiStore(s => s.sortBy)
   const sortDir = useUiStore(s => s.sortDir)
   const searchQuery = useUiStore(s => s.searchQuery)
@@ -93,6 +94,9 @@ export function RepoList() {
                 {emptyState === 'empty-trash' && '取消 Star 的仓库会暂存在这里'}
                 {emptyState === 'no-results' && '试试调整搜索词或筛选条件'}
               </p>
+              {emptyState === 'no-data' && (
+                <button type="button" className="gh-btn gh-btn-primary gh-btn-sm mt-4" onClick={() => void syncStarred()}>立即同步</button>
+              )}
             </div>
           )}
     </div>

@@ -8,6 +8,7 @@ export function RepoToolbar() {
   const repos = useRepoStore(s => s.repos)
   const syncing = useRepoStore(s => s.syncing)
   const syncProgress = useRepoStore(s => s.syncProgress)
+  const cloudSaveState = useRepoStore(s => s.cloudSaveState)
   const syncStarred = useRepoStore(s => s.syncStarred)
   const sortBy = useUiStore(s => s.sortBy)
   const sortDir = useUiStore(s => s.sortDir)
@@ -75,10 +76,10 @@ export function RepoToolbar() {
             disabled={syncing}
           >
             <SyncIcon spinning={syncing} />
-            <span className="hidden sm:inline">{syncing ? syncProgress || '同步中...' : '同步'}</span>
+            <span className="hidden sm:inline">{syncing ? '同步中' : '同步'}</span>
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex max-w-[58vw] items-center gap-2 overflow-x-auto md:max-w-none md:overflow-visible">
           <select
             className="gh-select text-ui-caption h-7"
             value={selectedLang}
@@ -125,7 +126,7 @@ export function RepoToolbar() {
           <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><SearchIcon /></div>
           <input
             type="text"
-            placeholder="请输入要搜索的内容..."
+            placeholder="搜索仓库"
             className="gh-input text-ui-body h-9 md:h-8"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -133,6 +134,11 @@ export function RepoToolbar() {
           />
         </div>
       </div>
+      {(syncing || cloudSaveState !== 'saved') && (
+        <div className="flex h-7 items-center border-b border-gh-border-muted bg-gh-canvas/60 px-3 text-ui-caption text-gh-fg-muted" role="status">
+          {syncing ? syncProgress || '正在同步...' : cloudSaveState === 'saving' ? '正在保存到 Gist...' : '修改仅保存在本机，等待写入 Gist'}
+        </div>
+      )}
     </>
   )
 }
