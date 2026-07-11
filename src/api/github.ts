@@ -1,4 +1,5 @@
 import type { User } from '../types'
+import { normalizeNetworkError, parseGitHubError } from './errors.ts'
 
 const BASE = 'https://api.github.com'
 
@@ -34,9 +35,15 @@ function headers(pat: string): HeadersInit {
 }
 
 export async function getUser(pat: string): Promise<User> {
-  const res = await fetch(`${BASE}/user`, { headers: headers(pat) })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/user`, { headers: headers(pat) })
+  }
+  catch (error) {
+    throw normalizeNetworkError(error, '验证 PAT 失败')
+  }
   if (!res.ok)
-    throw new Error(`PAT 无效 (${res.status})`)
+    throw await parseGitHubError(res, '验证 PAT 失败')
   const data = await res.json()
   return {
     login: data.login,
@@ -72,9 +79,15 @@ export async function getStarred(
 
   while (true) {
     const url = `${BASE}/user/starred?per_page=${perPage}&page=${page}&sort=created&direction=desc`
-    const res = await fetch(url, { headers: headers(pat) })
+    let res: Response
+    try {
+      res = await fetch(url, { headers: headers(pat) })
+    }
+    catch (error) {
+      throw normalizeNetworkError(error, '拉取 Star 列表失败')
+    }
     if (!res.ok)
-      throw new Error(`拉取 Star 列表失败 (${res.status})`)
+      throw await parseGitHubError(res, '拉取 Star 列表失败')
 
     const link = res.headers.get('link') || ''
     const totalPages = getLastPage(link) ?? page
@@ -116,24 +129,36 @@ export async function setRepoStarred(pat: string, fullName: string, starred: boo
   if (!owner || !repo || rest.length > 0)
     throw new Error('仓库名称无效')
 
-  const res = await fetch(`${BASE}/user/starred/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
-    method: starred ? 'PUT' : 'DELETE',
-    headers: headers(pat),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/user/starred/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, {
+      method: starred ? 'PUT' : 'DELETE',
+      headers: headers(pat),
+    })
+  }
+  catch (error) {
+    throw normalizeNetworkError(error, `${starred ? '恢复' : '取消'} Star 失败`)
+  }
   if (!res.ok)
-    throw new Error(`${starred ? '恢复' : '取消'} Star 失败 (${res.status})`)
+    throw await parseGitHubError(res, `${starred ? '恢复' : '取消'} Star 失败`)
 }
 
 export async function getReadme(pat: string, owner: string, repo: string): Promise<string> {
-  const res = await fetch(`${BASE}/repos/${owner}/${repo}/readme`, {
-    headers: {
-      Authorization: `Bearer ${pat}`,
-      Accept: 'application/vnd.github.raw+json',
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/repos/${owner}/${repo}/readme`, {
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        Accept: 'application/vnd.github.raw+json',
+      },
+    })
+  }
+  catch (error) {
+    throw normalizeNetworkError(error, '拉取 README 失败')
+  }
   if (res.status === 404)
     return ''
   if (!res.ok)
-    throw new Error(`拉取 README 失败 (${res.status})`)
+    throw await parseGitHubError(res, '拉取 README 失败')
   return res.text()
 }

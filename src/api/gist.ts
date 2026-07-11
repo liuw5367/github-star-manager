@@ -1,3 +1,5 @@
+import { normalizeNetworkError, parseGitHubError } from './errors.ts'
+
 const BASE = 'https://api.github.com'
 export const GIST_DESCRIPTION = 'gitstars-data-v1'
 export const LEGACY_GIST_DESCRIPTION = 'GitHub Star Manager Data'
@@ -34,6 +36,18 @@ function headers(pat: string): HeadersInit {
   }
 }
 
+async function githubRequest(request: typeof fetch, input: string, init: RequestInit, context: string): Promise<Response> {
+  try {
+    const response = await request(input, init)
+    if (!response.ok)
+      throw await parseGitHubError(response, context)
+    return response
+  }
+  catch (error) {
+    throw normalizeNetworkError(error, context)
+  }
+}
+
 export async function discoverGitStarsGists(
   pat: string,
   request: typeof fetch = fetch,
@@ -43,9 +57,7 @@ export async function discoverGitStarsGists(
 
   while (true) {
     const url = `${BASE}/gists?per_page=100&page=${pageNumber}`
-    const res = await request(url, { headers: headers(pat) })
-    if (!res.ok)
-      throw new Error(`查找 Gist 失败 (${res.status})`)
+    const res = await githubRequest(request, url, { headers: headers(pat) }, '查找 Gist 失败')
 
     const page = await res.json()
     for (const item of page) {
@@ -63,9 +75,7 @@ export async function discoverGitStarsGists(
   }
 
   const candidates = await Promise.all(summaries.map(async (summary): Promise<GistCandidate | null> => {
-    const res = await request(`${BASE}/gists/${summary.id}`, { headers: headers(pat) })
-    if (!res.ok)
-      throw new Error(`读取 Gist 失败 (${res.status})`)
+    const res = await githubRequest(request, `${BASE}/gists/${summary.id}`, { headers: headers(pat) }, '读取 Gist 失败')
 
     const data = await res.json()
     const files = readGistFiles(data)
@@ -108,7 +118,7 @@ export async function upgradeLegacyGist(
     last_synced: previous.last_synced || '',
     total_starred: previous.total_starred || 0,
   })
-  const res = await request(`${BASE}/gists/${candidate.id}`, {
+  await githubRequest(request, `${BASE}/gists/${candidate.id}`, {
     method: 'PATCH',
     headers: headers(pat),
     body: JSON.stringify({
@@ -117,9 +127,7 @@ export async function upgradeLegacyGist(
         'meta.json': { content: metaContent },
       },
     }),
-  })
-  if (!res.ok)
-    throw new Error(`升级 Gist 失败 (${res.status})`)
+  }, '升级 Gist 失败')
 
   return {
     ...candidate,
@@ -180,7 +188,7 @@ export async function createGist(pat: string, ownerLogin: string): Promise<strin
     files[name] = { content }
   }
 
-  const res = await fetch(`${BASE}/gists`, {
+  const res = await githubRequest(fetch, `${BASE}/gists`, {
     method: 'POST',
     headers: headers(pat),
     body: JSON.stringify({
@@ -188,18 +196,13 @@ export async function createGist(pat: string, ownerLogin: string): Promise<strin
       public: false,
       files,
     }),
-  })
-
-  if (!res.ok)
-    throw new Error(`创建 Gist 失败 (${res.status})`)
+  }, '创建 Gist 失败')
   const data = await res.json()
   return data.id
 }
 
 export async function getGistFiles(gistId: string, pat: string): Promise<GistFiles> {
-  const res = await fetch(`${BASE}/gists/${gistId}`, { headers: headers(pat) })
-  if (!res.ok)
-    throw new Error(`读取 Gist 失败 (${res.status})`)
+  const res = await githubRequest(fetch, `${BASE}/gists/${gistId}`, { headers: headers(pat) }, '读取 Gist 失败')
   const data = await res.json()
 
   const getContent = (name: string): string => {
@@ -226,12 +229,9 @@ export async function updateGistFiles(
     bodyFiles[name] = { content: content || '' }
   }
 
-  const res = await fetch(`${BASE}/gists/${gistId}`, {
+  await githubRequest(fetch, `${BASE}/gists/${gistId}`, {
     method: 'PATCH',
     headers: headers(pat),
     body: JSON.stringify({ files: bodyFiles }),
-  })
-
-  if (!res.ok)
-    throw new Error(`写入 Gist 失败 (${res.status})`)
+  }, '写入 Gist 失败')
 }
