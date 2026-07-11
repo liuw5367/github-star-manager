@@ -65,7 +65,7 @@ export function RepoCard({ repo, isSelected, onClick }: RepoCardProps) {
         }
       }}
       className={`group border-b border-gh-border-muted cursor-pointer transition-colors ${isSelected ? 'bg-gh-accent/5 border-l-2 !border-l-gh-accent' : 'hover:bg-gh-canvas/60 border-l-2 border-l-transparent'}`}
-      style={{ padding: '12px 12px 10px' }}
+      style={{ padding: '6px 12px 6px' }}
     >
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="min-w-0 flex-1 flex items-center gap-2">

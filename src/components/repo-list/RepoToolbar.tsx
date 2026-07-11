@@ -51,7 +51,7 @@ export function RepoToolbar() {
 
   return (
     <>
-      <div className="flex items-center flex-wrap justify-between px-3 py-2 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0 min-h-12 md:min-h-10">
+      <div className="flex items-center flex-wrap justify-between px-3 py-1 border-b border-gh-border-muted bg-white dark:bg-gh-canvas flex-shrink-0 min-h-[49px] md:min-h-[49px]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -80,7 +80,7 @@ export function RepoToolbar() {
           </button>
         </div>
         <div className="flex max-w-[58vw] items-center gap-2 overflow-x-auto md:max-w-none md:overflow-visible">
-          <select
+          {/* <select
             className="gh-select text-ui-caption h-7"
             value={selectedLang}
             onChange={(e) => {
@@ -98,7 +98,7 @@ export function RepoToolbar() {
                 )
               </option>
             ))}
-          </select>
+          </select> */}
           <select
             className="gh-select text-ui-caption"
             style={{ backgroundImage: 'none', paddingRight: 12 }}

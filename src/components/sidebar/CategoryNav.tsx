@@ -47,7 +47,7 @@ export function CategoryNav() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-3 py-3 border-b border-gh-border-muted">
+      <div className="px-3 py-2 border-b border-gh-border-muted">
         {user && (
           <div className="flex items-center gap-2">
             <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full border border-gh-border flex-shrink-0" />
