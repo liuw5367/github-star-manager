@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import * as gist from '../api/gist'
 import * as github from '../api/github'
 import { loadAccountSnapshot, migrateLegacyCache, REPO_CACHE_KEY, scopedCacheKey, shouldPullCloudBeforeSync } from '../lib/accountCache'
-import { hydrateGistFiles, persistRepoSnapshot, splitReposByTrash, stripDerivedRepoTags, updateRepoStarState } from '../lib/repoPersistence'
+import { hydrateGistFiles, persistRepoSnapshot, retryPendingRepoSnapshot, splitReposByTrash, stripDerivedRepoTags, updateRepoStarState } from '../lib/repoPersistence'
 import { useAuthStore } from './authStore'
 import { useTagStore } from './tagStore'
 
@@ -13,6 +13,7 @@ interface RepoState {
   syncing: boolean
   syncProgress: string
   lastSynced: string
+  cloudSaveState: 'saved' | 'saving' | 'pending'
   activateCache: (gistId: string, previousGistId: string | null) => { repos: Repo[], exists: boolean }
   setRepos: (repos: Repo[], persist?: boolean) => void
   setLastSynced: (lastSynced: string) => void
@@ -22,6 +23,8 @@ interface RepoState {
   setNote: (fullName: string, note: string) => void
   addTag: (fullName: string, tagId: string) => void
   removeTag: (fullName: string, tagId: string) => void
+  persistCurrentMetadata: (repos?: Repo[]) => Promise<void>
+  retryPendingCloudWrite: () => Promise<boolean>
 }
 
 export interface SyncCredentials {
@@ -91,12 +94,14 @@ export const useRepoStore = create<RepoState>((set, get) => ({
   syncing: false,
   syncProgress: '',
   lastSynced: '',
+  cloudSaveState: 'saved',
 
   activateCache: (gistId, previousGistId) => {
     migrateLegacyCache(localStorage, REPO_CACHE_KEY, gistId, previousGistId)
     const cached = loadCache(gistId)
     const repos = stripDerivedRepoTags(cached.repos)
-    set({ cacheGistId: gistId, repos })
+    const snapshot = loadAccountSnapshot(localStorage, gistId)
+    set({ cacheGistId: gistId, repos, cloudSaveState: snapshot?.pendingCloudWrite ? 'pending' : 'saved' })
     return { ...cached, repos }
   },
   setRepos: (repos, persist = true) => {
@@ -174,7 +179,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
         pat,
       })
 
-      set({ repos: nextRepos, lastSynced: now, syncing: false, syncProgress: '' })
+      set({ repos: nextRepos, lastSynced: now, syncing: false, syncProgress: '', cloudSaveState: 'saved' })
       saveCache(nextRepos, gistId)
     }
     catch (err) {
@@ -201,9 +206,12 @@ export const useRepoStore = create<RepoState>((set, get) => ({
     saveCache(updated, get().cacheGistId)
 
     try {
+      set({ cloudSaveState: 'saving' })
       await persistMetadata(updated, get().lastSynced)
+      set({ cloudSaveState: 'saved' })
     }
     catch {
+      set({ cloudSaveState: 'pending' })
       throw new Error(`${starred ? '已恢复' : '已取消'} Star，但 Gist 保存失败；下次同步会重试`)
     }
   },
@@ -216,7 +224,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           : repo,
       )
       saveCache(updated, state.cacheGistId)
-      void persistMetadata(updated, state.lastSynced)
+      void get().persistCurrentMetadata(updated)
       return { repos: updated }
     })
   },
@@ -229,7 +237,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           : repo,
       )
       saveCache(updated, state.cacheGistId)
-      void persistMetadata(updated, state.lastSynced)
+      void get().persistCurrentMetadata(updated)
       return { repos: updated }
     })
   },
@@ -242,7 +250,7 @@ export const useRepoStore = create<RepoState>((set, get) => ({
           : repo,
       )
       saveCache(updated, state.cacheGistId)
-      void persistMetadata(updated, state.lastSynced)
+      void get().persistCurrentMetadata(updated)
       return { repos: updated }
     })
   },
@@ -253,8 +261,35 @@ export const useRepoStore = create<RepoState>((set, get) => ({
         repo.full_name === fullName ? { ...repo, note } : repo,
       )
       saveCache(updated, state.cacheGistId)
-      void persistMetadata(updated, state.lastSynced)
+      void get().persistCurrentMetadata(updated)
       return { repos: updated }
     })
+  },
+
+  persistCurrentMetadata: async (repos = get().repos) => {
+    set({ cloudSaveState: 'saving' })
+    try {
+      await persistMetadata(repos, get().lastSynced)
+      set({ cloudSaveState: 'saved' })
+    }
+    catch {
+      set({ cloudSaveState: 'pending' })
+    }
+  },
+
+  retryPendingCloudWrite: async () => {
+    const { pat, gistId } = useAuthStore.getState()
+    if (!pat || !gistId)
+      return false
+    set({ cloudSaveState: 'saving' })
+    try {
+      const retried = await retryPendingRepoSnapshot({ gistId, pat })
+      set({ cloudSaveState: 'saved' })
+      return retried
+    }
+    catch (error) {
+      set({ cloudSaveState: 'pending' })
+      throw error
+    }
   },
 }))

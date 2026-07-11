@@ -249,3 +249,27 @@ export async function persistRepoSnapshot(args: RepoSnapshotArgs): Promise<void>
     updateGistFiles: gist.updateGistFiles,
   })
 }
+
+export async function retryPendingRepoSnapshot(
+  credentials: { gistId: string, pat: string },
+  dependencies: RepoSnapshotDependencies = {
+    storage: localStorage,
+    now: () => new Date().toISOString(),
+    updateGistFiles: gist.updateGistFiles,
+  },
+): Promise<boolean> {
+  const snapshot = loadAccountSnapshot(dependencies.storage, credentials.gistId)
+  if (!snapshot?.pendingCloudWrite)
+    return false
+
+  await writeRepoSnapshot({
+    repos: snapshot.repos,
+    categories: snapshot.categories,
+    ownerLogin: snapshot.ownerLogin,
+    lastSynced: snapshot.lastSynced,
+    totalStarred: splitReposByTrash(snapshot.repos).activeRepos.length,
+    gistId: credentials.gistId,
+    pat: credentials.pat,
+  }, dependencies)
+  return true
+}

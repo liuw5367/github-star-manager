@@ -6,10 +6,55 @@ import {
   hydrateGistFiles,
   mergeRemoteRepoData,
   reconcileReposWithCategories,
+  retryPendingRepoSnapshot,
   splitReposByTrash,
   updateRepoStarState,
   writeRepoSnapshot,
 } from '../src/lib/repoPersistence.ts'
+
+function createStorage(entries = {}) {
+  const values = new Map(Object.entries(entries))
+  return {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  }
+}
+
+test('retryPendingRepoSnapshot uploads the pending local snapshot', async () => {
+  const snapshot = {
+    version: 1,
+    gistId: 'gist-a',
+    ownerLogin: 'octocat',
+    repos: [{ full_name: 'acme/repo', tags: [], note: '', trashed_at: null }],
+    categories: [],
+    lastSynced: '2026-07-11T00:00:00Z',
+    savedAt: '2026-07-11T00:01:00Z',
+    pendingCloudWrite: true,
+  }
+  const storage = createStorage({ 'gsm_account_snapshot:gist-a': JSON.stringify(snapshot) })
+  let uploaded
+
+  const retried = await retryPendingRepoSnapshot({ gistId: 'gist-a', pat: 'pat' }, {
+    storage,
+    now: () => '2026-07-11T00:02:00Z',
+    updateGistFiles: async (_gistId, _pat, files) => { uploaded = files },
+  })
+
+  assert.equal(retried, true)
+  assert.ok(uploaded)
+  assert.equal(JSON.parse(storage.getItem('gsm_account_snapshot:gist-a')).pendingCloudWrite, false)
+})
+
+test('retryPendingRepoSnapshot is a no-op without pending data', async () => {
+  const retried = await retryPendingRepoSnapshot({ gistId: 'gist-a', pat: 'pat' }, {
+    storage: createStorage(),
+    now: () => '2026-07-11T00:02:00Z',
+    updateGistFiles: async () => assert.fail('should not upload'),
+  })
+
+  assert.equal(retried, false)
+})
 
 test('mergeRemoteRepoData merges remote metadata and removes legacy derived tags', () => {
   const cachedRepos = [
